@@ -56,14 +56,14 @@ go install github.com/lcalzada-xor/dupdurl@latest
 ### Build from Source
 ```bash
 git clone https://github.com/lcalzada-xor/dupdurl.git
-cd dedup
+cd dupdurl
 make build
 sudo make install
 ```
 
 ### Or use directly
 ```bash
-go run dedup.go < urls.txt
+go run dupdurl.go < urls.txt
 ```
 
 **Requirements**: Go 1.21+
@@ -75,20 +75,20 @@ go run dedup.go < urls.txt
 ### Basic Usage
 ```bash
 # Deduplicate URLs from waybackurls
-waybackurls target.com | dedup
+waybackurls target.com | dupdurl
 
 # With fuzzy ID matching (recommended for bug bounty)
-waybackurls target.com | dedup -fuzzy
+waybackurls target.com | dupdurl -fuzzy
 
 # Remove tracking parameters
-cat urls.txt | dedup -ignore-params=utm_source,utm_medium,fbclid
+cat urls.txt | dupdurl -ignore-params=utm_source,utm_medium,fbclid
 ```
 
 ### Complete Bug Bounty Workflow
 ```bash
 # Ultimate recon pipeline
 waybackurls target.com | \
-  dedup \
+  dupdurl \
     -fuzzy \
     -ignore-params=utm_source,utm_medium,utm_campaign,fbclid,gclid \
     -ignore-extensions=jpg,png,gif,css,js,woff,woff2 \
@@ -105,7 +105,7 @@ waybackurls target.com | \
 ### 🔥 Fuzzy Mode for API Endpoints
 ```bash
 # Discover unique API patterns
-waybackurls api.example.com | dedup -fuzzy -mode=path
+waybackurls api.example.com | dupdurl -fuzzy -mode=path
 
 # Input:
 #   /api/users/123/profile
@@ -118,7 +118,7 @@ waybackurls api.example.com | dedup -fuzzy -mode=path
 ### 📊 JSON Output for Analysis
 ```bash
 # Export with counts in JSON format
-katana -u target.com | dedup -output=json -counts > results.json
+katana -u target.com | dupdurl -output=json -counts > results.json
 
 # Analyze with jq
 cat results.json | jq '.[] | select(.count > 5) | .url'
@@ -127,17 +127,17 @@ cat results.json | jq '.[] | select(.count > 5) | .url'
 ### 🎯 Integration with Recon Tools
 ```bash
 # With waybackurls
-waybackurls target.com | dedup -fuzzy > urls.txt
+waybackurls target.com | dupdurl -fuzzy > urls.txt
 
 # With gau
-gau target.com | dedup -ignore-extensions=jpg,png,css > urls.txt
+gau target.com | dupdurl -ignore-extensions=jpg,png,css > urls.txt
 
 # With katana
-katana -u target.com | dedup -mode=path -fuzzy > paths.txt
+katana -u target.com | dupdurl -mode=path -fuzzy > paths.txt
 
 # Chain with httpx and nuclei
 waybackurls target.com | \
-  dedup -fuzzy | \
+  dupdurl -fuzzy | \
   httpx -silent -mc 200 | \
   nuclei -t ~/nuclei-templates/
 ```
@@ -145,10 +145,10 @@ waybackurls target.com | \
 ### 🌐 Domain Filtering
 ```bash
 # Only process specific domains (whitelist)
-cat urls.txt | dedup -allow-domains=example.com,api.example.com
+cat urls.txt | dupdurl -allow-domains=example.com,api.example.com
 
 # Exclude CDN domains (blacklist)
-cat urls.txt | dedup -block-domains=cdn.example.com,static.example.com
+cat urls.txt | dupdurl -block-domains=cdn.example.com,static.example.com
 ```
 
 ---
@@ -211,7 +211,7 @@ katana -u $TARGET -d 5 -o katana.txt
 
 # Deduplicate and filter
 cat wayback.txt gau.txt katana.txt | \
-  dedup -fuzzy \
+  dupdurl -fuzzy \
         -ignore-params=utm_source,utm_medium,fbclid \
         -ignore-extensions=jpg,png,css,js \
         -stats > unique_urls.txt
@@ -222,7 +222,7 @@ cat wayback.txt gau.txt katana.txt | \
 # Find unique API endpoint patterns
 waybackurls api.target.com | \
   grep -i "/api/" | \
-  dedup -fuzzy -mode=path | \
+  dupdurl -fuzzy -mode=path | \
   sort > api_patterns.txt
 ```
 
@@ -230,7 +230,7 @@ waybackurls api.target.com | \
 ```bash
 # Discover all unique parameter combinations
 waybackurls target.com | \
-  dedup -mode=params | \
+  dupdurl -mode=params | \
   sort -u > param_combinations.txt
 
 # Find interesting parameters
@@ -245,7 +245,7 @@ grep -E "(callback|redirect|url|return|debug|admin)" param_combinations.txt
 
 ```bash
 # Track what's being filtered
-cat urls.txt | dedup -stats -verbose
+cat urls.txt | dupdurl -stats -verbose
 
 # Output:
 # === Statistics ===
@@ -302,16 +302,16 @@ Output: /api/users/{id}/profile
 
 ## ❓ Frequently Asked Questions
 
-### What makes dedup different from other URL deduplication tools?
-`dedup` offers **fuzzy ID matching**, **multi-format output**, and **advanced parameter filtering** specifically designed for bug bounty workflows. It's also **actively maintained** with regular updates.
+### What makes dupdurl different from other URL deduplication tools?
+`dupdurl` offers **fuzzy ID matching**, **multi-format output**, and **advanced parameter filtering** specifically designed for bug bounty workflows. It's also **actively maintained** with regular updates.
 
-### Can I use dedup with waybackurls, katana, and gau?
+### Can I use dupdurl with waybackurls, katana, and gau?
 **Absolutely!** That's exactly what it's designed for. Chain it in your recon pipeline:
 ```bash
-waybackurls target.com | dedup -fuzzy | httpx
+waybackurls target.com | dupdurl -fuzzy | httpx
 ```
 
-### Is dedup suitable for large URL lists?
+### Is dupdurl suitable for large URL lists?
 **Yes!** Tested with 1M+ URLs. Processes 100K URLs in ~2 seconds. Supports up to 10MB line lengths.
 
 ### How does fuzzy matching work?
@@ -336,17 +336,17 @@ Fuzzy mode identifies numeric path segments (like user IDs) and replaces them wi
 subfinder -d target.com | \
   httpx -silent | \
   katana -d 3 | \
-  dedup -fuzzy | \
+  dupdurl -fuzzy | \
   nuclei -t ~/templates/
 
 # amass → httprobe → dedup
 amass enum -d target.com | \
   httprobe | \
-  dedup -mode=host
+  dupdurl -mode=host
 
 # meg + dedup for interesting paths
 meg --paths interesting_paths.txt targets.txt | \
-  dedup -mode=path
+  dupdurl -mode=path
 ```
 
 ---
@@ -369,7 +369,7 @@ meg --paths interesting_paths.txt targets.txt | \
 - [**ffuf**](https://github.com/ffuf/ffuf) - Fast web fuzzer
 - [**subfinder**](https://github.com/projectdiscovery/subfinder) - Subdomain discovery tool
 
-> 💡 **Tip**: Chain `dedup` with these tools for optimal bug bounty recon workflows!
+> 💡 **Tip**: Chain `dupdurl` with these tools for optimal bug bounty recon workflows!
 
 ---
 
@@ -402,7 +402,7 @@ make demo
 
 ## ⭐ Support This Project
 
-If `dedup` saves you time during bug bounty hunting or penetration testing, please consider:
+If `dupdurl` saves you time during bug bounty hunting or penetration testing, please consider:
 
 - ⭐ **Star this repository** (it helps others discover it!)
 - 🐛 [Report bugs or issues](https://github.com/lcalzada-xor/dupdurl/issues)
@@ -442,7 +442,7 @@ Contributions are welcome! Whether it's:
 ### Development Setup
 ```bash
 git clone https://github.com/lcalzada-xor/dupdurl.git
-cd dedup
+cd dupdurl
 make build
 make test
 ```
