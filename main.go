@@ -135,7 +135,7 @@ func normalizeURL(raw string, ignoredSet, allowedDomains, blockedDomains map[str
 		u.Path = fuzzyPath(u.Path)
 	}
 
-	// Query params handling - ALWAYS normalize, not just when sorting
+	// Query params handling - keep values by default
 	q := u.Query()
 	
 	// Delete ignored params
@@ -147,7 +147,7 @@ func normalizeURL(raw string, ignoredSet, allowedDomains, blockedDomains map[str
 		// Build sorted query with sorted values
 		u.RawQuery = buildSortedQuery(q)
 	} else {
-		// Normalize but maintain original order
+		// Keep parameter values as-is
 		u.RawQuery = q.Encode()
 	}
 
@@ -229,6 +229,68 @@ func buildSortedQuery(q url.Values) string {
 		}
 	}
 	return sb.String()
+}
+
+// createDedupKey creates a key for deduplication that includes parameter names but not values
+// This is used when we want to deduplicate based on param structure but keep sample values
+func createDedupKey(raw string, ignoredSet, allowedDomains, blockedDomains map[string]struct{}) (string, error) {
+	if *trimSpaces {
+		raw = strings.TrimSpace(raw)
+	}
+	
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("parse error: %w", err)
+	}
+
+	// Apply same normalization as normalizeURL
+	if !*caseSensitive && !*keepScheme {
+		u.Scheme = strings.ToLower(u.Scheme)
+	} else if !*keepScheme {
+		u.Scheme = "https"
+	}
+
+	if !*caseSensitive {
+		u.Host = strings.ToLower(u.Host)
+	}
+
+	if !*keepWWW {
+		if strings.HasPrefix(u.Host, "www.") {
+			u.Host = strings.TrimPrefix(u.Host, "www.")
+		}
+	}
+
+	if *ignoreFrag {
+		u.Fragment = ""
+	}
+
+	u.Path = normalizePath(u.Path)
+
+	if *fuzzyMode {
+		u.Path = fuzzyPath(u.Path)
+	}
+
+	// For the dedup key, we only keep parameter NAMES, not values
+	q := u.Query()
+	
+	// Delete ignored params
+	for p := range ignoredSet {
+		q.Del(p)
+	}
+	
+	// Build query string with param names only (no values)
+	if len(q) > 0 {
+		keys := make([]string, 0, len(q))
+		for k := range q {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		u.RawQuery = strings.Join(keys, "&") + "="
+	} else {
+		u.RawQuery = ""
+	}
+
+	return u.String(), nil
 }
 
 func extractParams(line string) (string, error) {
@@ -412,11 +474,12 @@ func main() {
 	blockedDomains := parseSet(*blockDomains)
 	ignoredExts := parseSet(*ignoreExtensions)
 
-	seen := map[string]int{}
+	// Maps to track first-seen URLs with parameter values
+	seen := map[string]string{} // dedup key -> first full URL with values
+	counts := map[string]int{}
 	order := []string{}
 
 	scanner := bufio.NewScanner(os.Stdin)
-	// Allow long lines
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 10*1024*1024)
 
@@ -430,7 +493,8 @@ func main() {
 			continue
 		}
 		
-		key, err := normalizeLine(line, ignoredSet, allowedDomains, blockedDomains, ignoredExts)
+		// Create dedup key (without parameter values for comparison)
+		key, err := createDedupKey(line, ignoredSet, allowedDomains, blockedDomains)
 		if err != nil {
 			if *verbose {
 				fmt.Fprintf(os.Stderr, "Line %d: %v - %s\n", lineNum, err, line)
@@ -445,17 +509,21 @@ func main() {
 			continue
 		}
 		
-		if key == "" {
+		// Get normalized URL with values preserved
+		normalizedURL, err := normalizeURL(line, ignoredSet, allowedDomains, blockedDomains)
+		if err != nil {
 			continue
 		}
 		
+		// If this key hasn't been seen, store the first URL with its values
 		if _, ok := seen[key]; !ok {
+			seen[key] = normalizedURL
 			order = append(order, key)
 			stats.UniqueURLs++
 		} else {
 			stats.Duplicates++
 		}
-		seen[key]++
+		counts[key]++
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -463,12 +531,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Prepare entries
+	// Prepare entries with first-seen URLs (which have parameter values)
 	entries := make([]URLEntry, len(order))
 	for i, k := range order {
 		entries[i] = URLEntry{
-			URL:   k,
-			Count: seen[k],
+			URL:   seen[k],
+			Count: counts[k],
 		}
 	}
 
@@ -496,3 +564,5 @@ func main() {
 		printStats()
 	}
 }
+
+// dedupStandard implements the original deduplication logic
