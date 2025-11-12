@@ -6,7 +6,7 @@ Keywords: bug bounty, url deduplication, pentesting, security tools, recon, url 
 Category: Security Tools, Bug Bounty, Pentesting, Reconnaissance
 -->
 
-# 🔥 dupdurl - URL Deduplication Tool for Bug Bounty & Pentesting
+# dupdurl - URL Deduplication Tool for Bug Bounty & Pentesting
 
 ⚡ **Fast, powerful URL deduplication for security researchers and bug bounty hunters**. Fuzzy matching, parameter filtering, and multi-format output.
 
@@ -21,7 +21,7 @@ Category: Security Tools, Bug Bounty, Pentesting, Reconnaissance
 
 ---
 
-## 🚀 Why dupdurl?
+## Why dupdurl?
 
 A powerful and flexible **URL deduplication tool** designed specifically for **bug bounty pipelines** and **penetration testing workflows**. Perfect for processing output from tools like `katana`, `waybackurls`, `gau`, and other web crawlers.
 
