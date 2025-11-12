@@ -27,7 +27,7 @@ A powerful and flexible **URL deduplication tool** designed specifically for **b
 
 ### ✨ Key Features
 
-| Feature | dedup | urldedupe | uro | qsreplace |
+| Feature | dupdurl | urldedupe | uro | qsreplace |
 |---------|-------|-----------|-----|-----------|
 | 🎯 **Fuzzy ID matching** | ✅ | ✅ | ❌ | ❌ |
 | 🔧 **Parameter filtering** | ✅ | ❌ | ✅ | ✅ |
