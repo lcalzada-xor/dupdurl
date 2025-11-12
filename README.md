@@ -12,7 +12,6 @@ Category: Security Tools, Bug Bounty, Pentesting, Reconnaissance
 
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/lcalzada-xor/dupdurl?style=social)](https://github.com/lcalzada-xor/dupdurl/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/lcalzada-xor/dupdurl?style=social)](https://github.com/lcalzada-xor/dupdurl/network)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lcalzada-xor/dupdurl)](https://goreportcard.com/report/github.com/lcalzada-xor/dupdurl)
 
