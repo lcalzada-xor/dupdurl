@@ -6,15 +6,15 @@ Keywords: bug bounty, url deduplication, pentesting, security tools, recon, url 
 Category: Security Tools, Bug Bounty, Pentesting, Reconnaissance
 -->
 
-# 🔥 dedup - URL Deduplication Tool for Bug Bounty & Pentesting
+# 🔥 dupdurl - URL Deduplication Tool for Bug Bounty & Pentesting
 
 ⚡ **Fast, powerful URL deduplication for security researchers and bug bounty hunters**. Fuzzy matching, parameter filtering, and multi-format output.
 
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/lcalzada-xor/dedup?style=social)](https://github.com/lcalzada-xor/dedup/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/lcalzada-xor/dedup?style=social)](https://github.com/lcalzada-xor/dedup/network)
-[![Go Report Card](https://goreportcard.com/badge/github.com/lcalzada-xor/dedup)](https://goreportcard.com/report/github.com/lcalzada-xor/dedup)
+[![GitHub stars](https://img.shields.io/github/stars/lcalzada-xor/dupdurl?style=social)](https://github.com/lcalzada-xor/dupdurl/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/lcalzada-xor/dupdurl?style=social)](https://github.com/lcalzada-xor/dupdurl/network)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lcalzada-xor/dupdurl)](https://goreportcard.com/report/github.com/lcalzada-xor/dupdurl)
 
 > 🎯 Deduplicate waybackurls, katana, and gau output **10x faster** with advanced normalization
 
@@ -22,7 +22,7 @@ Category: Security Tools, Bug Bounty, Pentesting, Reconnaissance
 
 ---
 
-## 🚀 Why dedup?
+## 🚀 Why dupdurl?
 
 A powerful and flexible **URL deduplication tool** designed specifically for **bug bounty pipelines** and **penetration testing workflows**. Perfect for processing output from tools like `katana`, `waybackurls`, `gau`, and other web crawlers.
 
@@ -51,12 +51,12 @@ A powerful and flexible **URL deduplication tool** designed specifically for **b
 
 ### Quick Install (Recommended)
 ```bash
-go install github.com/lcalzada-xor/dedup@latest
+go install github.com/lcalzada-xor/dupdurl@latest
 ```
 
 ### Build from Source
 ```bash
-git clone https://github.com/lcalzada-xor/dedup.git
+git clone https://github.com/lcalzada-xor/dupdurl.git
 cd dedup
 make build
 sudo make install
@@ -406,9 +406,9 @@ make demo
 If `dedup` saves you time during bug bounty hunting or penetration testing, please consider:
 
 - ⭐ **Star this repository** (it helps others discover it!)
-- 🐛 [Report bugs or issues](https://github.com/lcalzada-xor/dedup/issues)
-- 💡 [Suggest new features](https://github.com/lcalzada-xor/dedup/issues/new)
-- 🤝 [Contribute code](https://github.com/lcalzada-xor/dedup/pulls)
+- 🐛 [Report bugs or issues](https://github.com/lcalzada-xor/dupdurl/issues)
+- 💡 [Suggest new features](https://github.com/lcalzada-xor/dupdurl/issues/new)
+- 🤝 [Contribute code](https://github.com/lcalzada-xor/dupdurl/pulls)
 - 📢 Share with other security researchers
 
 **Your support motivates continued development!** 🙏
@@ -438,11 +438,11 @@ Contributions are welcome! Whether it's:
 - 📖 Documentation improvements
 - 🔧 Code contributions
 
-**Good first issues**: Look for issues tagged [`good-first-issue`](https://github.com/lcalzada-xor/dedup/labels/good-first-issue)
+**Good first issues**: Look for issues tagged [`good-first-issue`](https://github.com/lcalzada-xor/dupdurl/labels/good-first-issue)
 
 ### Development Setup
 ```bash
-git clone https://github.com/lcalzada-xor/dedup.git
+git clone https://github.com/lcalzada-xor/dupdurl.git
 cd dedup
 make build
 make test
@@ -465,23 +465,23 @@ Inspired by and designed to work seamlessly with:
 - [ProjectDiscovery](https://github.com/projectdiscovery) for the excellent recon framework
 - The entire bug bounty and infosec community
 
-Special thanks to all [contributors](https://github.com/lcalzada-xor/dedup/graphs/contributors)!
+Special thanks to all [contributors](https://github.com/lcalzada-xor/dupdurl/graphs/contributors)!
 
 ---
 
 ## 💬 Community & Support
 
-- 💬 [GitHub Discussions](https://github.com/lcalzada-xor/dedup/discussions) - Ask questions, share workflows
-- 🐛 [Issue Tracker](https://github.com/lcalzada-xor/dedup/issues) - Report bugs
+- 💬 [GitHub Discussions](https://github.com/lcalzada-xor/dupdurl/discussions) - Ask questions, share workflows
+- 🐛 [Issue Tracker](https://github.com/lcalzada-xor/dupdurl/issues) - Report bugs
 
 ---
 
 ## 📊 Stats & Analytics
 
-![GitHub stars](https://img.shields.io/github/stars/lcalzada-xor/dedup?style=social)
-![GitHub forks](https://img.shields.io/github/forks/lcalzada-xor/dedup?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/lcalzada-xor/dedup?style=social)
-![GitHub downloads](https://img.shields.io/github/downloads/lcalzada-xor/dedup/total)
+![GitHub stars](https://img.shields.io/github/stars/lcalzada-xor/dupdurl?style=social)
+![GitHub forks](https://img.shields.io/github/forks/lcalzada-xor/dupdurl?style=social)
+![GitHub watchers](https://img.shields.io/github/watchers/lcalzada-xor/dupdurl?style=social)
+![GitHub downloads](https://img.shields.io/github/downloads/lcalzada-xor/dupdurl/total)
 
 ---
 
@@ -489,7 +489,7 @@ Special thanks to all [contributors](https://github.com/lcalzada-xor/dedup/graph
 
 **Made with ❤️ for the bug bounty community**
 
-[⭐ Star](https://github.com/lcalzada-xor/dedup) • [🐛 Report Bug](https://github.com/lcalzada-xor/dedup/issues) • [💡 Request Feature](https://github.com/lcalzada-xor/dedup/issues)
+[⭐ Star](https://github.com/lcalzada-xor/dupdurl) • [🐛 Report Bug](https://github.com/lcalzada-xor/dupdurl/issues) • [💡 Request Feature](https://github.com/lcalzada-xor/dupdurl/issues)
 
 **Happy Hunting! 🎯🐛**
 
