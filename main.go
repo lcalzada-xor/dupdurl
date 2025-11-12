@@ -46,7 +46,6 @@ var (
 	
 	// Advanced normalization
 	fuzzyMode         = flag.Bool("fuzzy", false, "replace numeric IDs in paths with {id} placeholder")
-	ignoreExtensions  = flag.String("ignore-extensions", "", "comma-separated file extensions to skip (e.g. jpg,png,css,js)")
 	pathIncludeQuery  = flag.Bool("path-include-query", false, "in path mode, include normalized query string")
 	
 	// Filtering
@@ -314,21 +313,12 @@ func extractParams(line string) (string, error) {
 	return strings.Join(params, ","), nil
 }
 
-func normalizeLine(line string, ignoredSet, allowedDomains, blockedDomains, ignoredExts map[string]struct{}) (string, error) {
+func normalizeLine(line string, ignoredSet, allowedDomains, blockedDomains map[string]struct{}) (string, error) {
 	if *trimSpaces {
 		line = strings.TrimSpace(line)
 	}
 	if line == "" {
 		return "", fmt.Errorf("empty line")
-	}
-
-	// Check for ignored extensions
-	if len(ignoredExts) > 0 {
-		for ext := range ignoredExts {
-			if strings.HasSuffix(strings.ToLower(line), "."+ext) {
-				return "", fmt.Errorf("ignored extension: .%s", ext)
-			}
-		}
 	}
 
 	switch *mode {
@@ -472,7 +462,6 @@ func main() {
 	ignoredSet := parseSet(*ignoreParams)
 	allowedDomains := parseSet(*allowDomains)
 	blockedDomains := parseSet(*blockDomains)
-	ignoredExts := parseSet(*ignoreExtensions)
 
 	// Maps to track first-seen URLs with parameter values
 	seen := map[string]string{} // dedup key -> first full URL with values
