@@ -78,21 +78,28 @@ func (p *Processor) processSequential(input io.Reader) ([]deduplicator.Entry, er
 			continue
 		}
 
-		// Create dedup key (without parameter values for comparison)
-		key, err := p.config.Normalizer.CreateDedupKey(line)
+		// Normalize according to mode
+		normalized, err := p.config.Normalizer.NormalizeLine(line)
 		if err != nil {
 			p.handleError(lineNum, line, err)
 			continue
 		}
 
-		// Get normalized URL with values preserved
-		normalizedURL, err := p.config.Normalizer.NormalizeURL(line)
-		if err != nil {
-			continue
+		// For URL mode, create separate dedup key (params without values)
+		// For other modes, use normalized value as both key and output
+		var key string
+		if p.config.Normalizer.Mode == "url" {
+			key, err = p.config.Normalizer.CreateDedupKey(line)
+			if err != nil {
+				p.handleError(lineNum, line, err)
+				continue
+			}
+		} else {
+			key = normalized
 		}
 
 		// Add to deduplicator
-		p.dedup.Add(key, normalizedURL)
+		p.dedup.Add(key, normalized)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -167,25 +174,31 @@ func (p *Processor) worker(wg *sync.WaitGroup, jobs <-chan string, results chan<
 	for line := range jobs {
 		lineNum++
 
-		// Create dedup key
-		key, err := p.config.Normalizer.CreateDedupKey(line)
+		// Normalize according to mode
+		normalized, err := p.config.Normalizer.NormalizeLine(line)
 		if err != nil {
 			results <- processedURL{lineNum: lineNum, originalLine: line, err: err}
 			continue
 		}
 
-		// Get normalized URL
-		normalizedURL, err := p.config.Normalizer.NormalizeURL(line)
-		if err != nil {
-			results <- processedURL{lineNum: lineNum, originalLine: line, err: err}
-			continue
+		// For URL mode, create separate dedup key (params without values)
+		// For other modes, use normalized value as both key and output
+		var key string
+		if p.config.Normalizer.Mode == "url" {
+			key, err = p.config.Normalizer.CreateDedupKey(line)
+			if err != nil {
+				results <- processedURL{lineNum: lineNum, originalLine: line, err: err}
+				continue
+			}
+		} else {
+			key = normalized
 		}
 
 		results <- processedURL{
 			lineNum:       lineNum,
 			originalLine:  line,
 			dedupKey:      key,
-			normalizedURL: normalizedURL,
+			normalizedURL: normalized,
 		}
 	}
 }

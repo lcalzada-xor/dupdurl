@@ -74,7 +74,6 @@ type CLIConfig struct {
 
 	// Config file
 	ConfigFile string
-	Profile    string
 	SaveConfig string
 
 	// Diff mode
@@ -174,8 +173,6 @@ func ParseFlags() *CLIConfig {
 
 	// === CONFIG FILE ===
 	flag.StringVar(&config.ConfigFile, "config", "", "")
-	flag.StringVar(&config.Profile, "profile", "", "")
-	flag.StringVar(&config.Profile, "p", "", "")
 	flag.StringVar(&config.SaveConfig, "save-config", "", "")
 
 	// === STORAGE OPTIONS ===
@@ -202,9 +199,13 @@ USAGE:
   waybackurls target.com | dupdurl --fuzzy --stats
 
 CORE NORMALIZATION OPTIONS:
-  -m, --mode <mode>              Normalization mode (default: url)
-                                 Modes: url, path, host, params, raw
-  -f, --fuzzy                    Enable fuzzy matching for IDs
+  -m, --mode <mode>              Deduplication mode (default: url)
+                                 • url:    Full URL deduplication (default)
+                                 • path:   Domain + path only (ignores params) ⭐ BEST FOR APIs
+                                 • host:   Domain/subdomain only
+                                 • params: Parameter name combinations
+                                 • raw:    Exact string match (no normalization)
+  -f, --fuzzy                    Enable fuzzy matching for IDs (replace with {id})
   -fp, --fuzzy-patterns <list>   Fuzzy patterns (default: numeric)
                                  Patterns: numeric, uuid, hash, token (comma-separated)
   --ignore-fragment              Remove URL fragments (#...) (default: true)
@@ -254,8 +255,6 @@ DIFF MODE (NEW in v2.1):
 CONFIG FILE (NEW in v2.1):
   --config <path>                Path to config file
                                  Default: ~/.config/dupdurl/config.yml
-  -p, --profile <name>           Use predefined profile
-                                 Profiles: bugbounty, aggressive, conservative
   --save-config <path>           Save current settings to config file
 
 SCOPE CHECKING (NEW in v2.1):
@@ -274,11 +273,20 @@ EXAMPLES:
   Basic deduplication:
     cat urls.txt | dupdurl
 
-  Bug bounty workflow:
-    waybackurls target.com | dupdurl --fuzzy --ignore-params=utm_source,fbclid --stats
+  Discover unique API endpoints (⭐ MOST USEFUL):
+    waybackurls target.com | dupdurl -m path -f
+
+  Enumerate subdomains:
+    waybackurls target.com | dupdurl -m host
+
+  Find parameter combinations:
+    waybackurls target.com | dupdurl -m params | grep "redirect\|callback"
 
   Filter only JavaScript and JSON files:
     waybackurls target.com | dupdurl --filter-extensions=js,json
+
+  Full bug bounty workflow:
+    waybackurls target.com | dupdurl -f -ie jpg,png,css -stats
 
   With parallel processing:
     cat urls.txt | dupdurl --workers=4 --output=json
@@ -289,9 +297,6 @@ EXAMPLES:
   Diff mode for change tracking:
     waybackurls target.com | dupdurl --save-baseline=day1.json
     waybackurls target.com | dupdurl --diff=day1.json
-
-  Using config profiles:
-    cat urls.txt | dupdurl --profile=bugbounty
 
   Scope checking:
     echo "*.example.com" > scope.txt
@@ -409,14 +414,6 @@ func main() {
 	} else {
 		// Try to load from default location
 		fileConfig = config.LoadOrDefault()
-	}
-
-	// Apply profile if specified
-	if cliConfig.Profile != "" {
-		if err := fileConfig.ApplyProfile(cliConfig.Profile); err != nil {
-			fmt.Fprintf(os.Stderr, "Error applying profile: %v\n", err)
-			os.Exit(1)
-		}
 	}
 
 	// Merge file config with CLI flags (CLI flags take precedence)

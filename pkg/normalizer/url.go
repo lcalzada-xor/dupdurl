@@ -300,6 +300,9 @@ func (c *Config) extractPath(line string) (string, error) {
 	}
 
 	path := NormalizePath(u.Path)
+	if !c.CaseSensitive {
+		path = strings.ToLower(path)
+	}
 	if c.FuzzyMode {
 		if len(c.FuzzyPatterns) > 0 {
 			path = ApplyFuzzyPatterns(path, c.FuzzyPatterns)

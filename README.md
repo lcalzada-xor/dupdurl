@@ -150,11 +150,7 @@ workers: 4
 EOF
 
 # Use config
-cat urls.txt | dupdurl
-
-# Or use predefined profiles
-cat urls.txt | dupdurl -profile bugbounty
-cat urls.txt | dupdurl -profile aggressive
+cat urls.txt | dupdurl --config ~/.config/dupdurl/config.yml
 ```
 
 ### ⚡ Performance Optimizations
@@ -211,7 +207,6 @@ dupdurl --scope=scope.txt --out-of-scope < urls.txt
 | `--filter-extensions` | `-fe` | Only allow extensions (whitelist) | `dupdurl -fe js,json,html` |
 | `--allow-domains` | `-ad` | Domain whitelist | `dupdurl -ad example.com` |
 | `--block-domains` | `-bd` | Domain blacklist | `dupdurl -bd ads.com` |
-| `--profile` | `-p` | Use config profile | `dupdurl -p bugbounty` |
 | `--diff` | `-d` | Compare with baseline | `dupdurl -d baseline.json` |
 | `--save-baseline` | `-sb` | Save as baseline | `dupdurl -sb day1.json` |
 | `--scope` | `-S` | Scope file with wildcards | `dupdurl -S scope.txt` |
@@ -413,42 +408,180 @@ cat urls.txt | dupdurl -stats -verbose
 
 ---
 
-## 🔍 Modes Explained
+## 🔍 Deduplication Modes Explained
 
-### `url` mode (default)
-Full URL normalization with all options applied.
+The `-m` or `--mode` flag controls **what part of the URL** is used for deduplication. Understanding these modes is key to getting the most out of dupdurl.
+
+### 📊 Quick Comparison
+
+| Mode | What it compares | Use case | Example |
+|------|------------------|----------|---------|
+| **url** | Full URL (default) | General deduplication | `dupdurl` or `dupdurl -m url` |
+| **path** | Domain + path only | Find unique endpoints | `dupdurl -m path` |
+| **host** | Domain/subdomain only | Enumerate subdomains | `dupdurl -m host` |
+| **params** | Parameter names only | Discover param combos | `dupdurl -m params` |
+| **raw** | Exact string match | No normalization | `dupdurl -m raw` |
+
+---
+
+### 1️⃣ **url** mode (DEFAULT)
+
+**What it does**: Full URL deduplication with normalization
+**Compares**: scheme + host + path + query parameters (normalized)
+
+**Normalization applied**:
+- Removes `www.`
+- Unifies `http://` and `https://` → `https://`
+- Normalizes parameter order
+- Removes fragments (`#section`)
+
 ```bash
-Input:  https://www.example.com/path?b=2&a=1#section
-Output: https://example.com/path?b=2&a=1
+# Input
+https://example.com/api/users?id=123&sort=asc
+http://www.example.com/api/users?sort=asc&id=123
+https://example.com/api/users?id=456
+
+# Output (first one is duplicate of second due to param reordering)
+https://example.com/api/users?id=123&sort=asc
+https://example.com/api/users?id=456
 ```
 
-### `path` mode  
-Host + path only, ignoring scheme, query, and fragment.
+**When to use**: 99% of the time - standard deduplication workflow
+
+---
+
+### 2️⃣ **path** mode ⭐ **MOST USEFUL**
+
+**What it does**: Compares only domain + path, ignores everything else
+**Compares**: `host + path` (IGNORES query params, scheme, fragment)
+**Perfect for**: Discovering unique API endpoints
+
 ```bash
-Input:  https://example.com/api/users?id=123#top
-Output: example.com/api/users
+# Input
+https://example.com/api/users?id=1
+https://example.com/api/users?id=2
+https://example.com/api/users?name=john
+https://example.com/api/products?id=5
+
+# Output (all /api/users collapse into one)
+example.com/api/users
+example.com/api/products
 ```
 
-### `host` mode
-Extract and normalize hostname only.
+**When to use**:
+- ✅ Discover unique endpoints/paths
+- ✅ You don't care about query parameters
+- ✅ Map site structure
+- ✅ **Combine with `-f` (fuzzy) for maximum power**
+
+**Power combo**:
 ```bash
-Input:  https://www.example.com:443/path?query
-Output: example.com:443
+waybackurls target.com | dupdurl -m path -f
+# Finds unique API patterns like /api/users/{id}/profile
 ```
 
-### `params` mode
-Extract unique parameter name combinations.
+---
+
+### 3️⃣ **host** mode
+
+**What it does**: Extracts unique domains/subdomains
+**Compares**: Only the hostname (IGNORES path, query, everything else)
+
 ```bash
-Input:  https://example.com?user=john&id=123&sort=asc
-Output: id,sort,user
+# Input
+https://api.example.com/v1/users
+https://api.example.com/v2/products
+https://web.example.com/home
+https://example.com/about
+
+# Output
+api.example.com
+web.example.com
+example.com
 ```
 
-### `fuzzy` mode (with -fuzzy flag)
-Replace numeric IDs with placeholders.
+**When to use**:
+- ✅ Enumerate subdomains found
+- ✅ Get list of unique hosts
+- ✅ First-phase reconnaissance
+
+---
+
+### 4️⃣ **params** mode
+
+**What it does**: Finds unique combinations of parameter **names** (not values)
+**Compares**: Sorted list of parameter names only
+
 ```bash
-Input:  /api/users/123/profile
-Output: /api/users/{id}/profile
+# Input
+/search?q=test&page=1&sort=asc
+/search?q=hello&page=2&sort=desc
+/search?q=world&page=1
+
+# Output
+page,q,sort    ← First combo (has all 3 params)
+page,q         ← Second combo (missing 'sort')
 ```
+
+**When to use**:
+- ✅ Discover what parameter combinations exist
+- ✅ Find interesting parameters for testing
+- ✅ Map API surface area
+
+**Useful workflow**:
+```bash
+# Find URLs with redirect/callback parameters
+waybackurls target.com | dupdurl -m params | grep -E "(redirect|callback|url|return)"
+```
+
+---
+
+### 5️⃣ **raw** mode
+
+**What it does**: Exact string comparison, **NO normalization**
+**Compares**: URLs exactly as-is (case-sensitive)
+
+```bash
+# Input
+https://example.com/API/users
+https://example.com/api/users
+
+# Output (both kept - different case)
+https://example.com/API/users
+https://example.com/api/users
+```
+
+**When to use**:
+- ⚠️ Rare - only when you need exact URLs
+- ⚠️ Debugging/testing
+- ⚠️ Case-sensitive systems
+
+---
+
+### 🎯 Real-World Bug Bounty Workflows
+
+```bash
+# Workflow 1: Discover unique API endpoints
+waybackurls target.com | dupdurl -m path -f -fe json,xml
+
+# Workflow 2: Map all subdomains
+waybackurls target.com | dupdurl -m host
+
+# Workflow 3: Find interesting parameters
+waybackurls target.com | dupdurl -m params | grep "admin\|debug\|key"
+
+# Workflow 4: Standard full deduplication
+waybackurls target.com | dupdurl -f -ie jpg,png,css
+```
+
+---
+
+### 💡 Pro Tips
+
+1. **Combine path + fuzzy** for best results: `dupdurl -m path -f`
+2. **Use params mode** to find hidden/interesting parameters
+3. **host mode** is great for initial subdomain enumeration
+4. **Default (url) mode** is fine for 90% of basic workflows
 
 ---
 

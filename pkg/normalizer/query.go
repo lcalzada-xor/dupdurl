@@ -94,10 +94,10 @@ func ExtractParams(rawURL string) (string, error) {
 		return "", nil
 	}
 
-	// Get unique parameter names, sorted
+	// Get unique parameter names, sorted (normalized to lowercase)
 	params := make([]string, 0, len(q))
 	for k := range q {
-		params = append(params, k)
+		params = append(params, strings.ToLower(k))
 	}
 	sort.Strings(params)
 

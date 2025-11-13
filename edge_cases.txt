@@ -1,0 +1,12 @@
+https://example.com/path/
+https://example.com/path
+https://example.com//double//slash
+https://example.com/./dot/./path
+https://example.com/../parent/path
+https://example.com/path?
+https://example.com/path?&&&
+https://example.com/path?param=
+https://example.com/path?param=value&param=value2
+https://example.com:443/path
+https://example.com:80/path
+HTTPS://EXAMPLE.COM/PATH
