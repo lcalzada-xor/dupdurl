@@ -191,117 +191,68 @@ func ParseFlags() *CLIConfig {
 
 // printUsage prints a professional, categorized help message
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `dupdurl v2.1 - URL Deduplication Tool for Bug Bounty & Pentesting
+	fmt.Fprintf(os.Stderr, `dupdurl v2.2.0 - URL Deduplication Tool
 
 USAGE:
   dupdurl [OPTIONS] < urls.txt
   cat urls.txt | dupdurl [OPTIONS]
-  waybackurls target.com | dupdurl --fuzzy --stats
 
-CORE NORMALIZATION OPTIONS:
-  -m, --mode <mode>              Deduplication mode (default: url)
-                                 • url:    Full URL deduplication (default)
-                                 • path:   Domain + path only (ignores params) ⭐ BEST FOR APIs
-                                 • host:   Domain/subdomain only
-                                 • params: Parameter name combinations
-                                 • raw:    Exact string match (no normalization)
-  -f, --fuzzy                    Enable fuzzy matching for IDs (replace with {id})
-  -fp, --fuzzy-patterns <list>   Fuzzy patterns (default: numeric)
-                                 Patterns: numeric, uuid, hash, token (comma-separated)
-  --ignore-fragment              Remove URL fragments (#...) (default: true)
-  --case-sensitive               Consider case when comparing paths/hosts
-  --keep-www                     Don't strip leading www. from host
-  --keep-scheme                  Distinguish between http:// and https://
-  -t, --trim                     Trim surrounding spaces (default: true)
+BASIC OPTIONS:
+  -m, --mode <mode>              Mode: url, path, host, params, raw (default: url)
+  -f, --fuzzy                    Replace IDs with {id} placeholder
+  -fp, --fuzzy-patterns <list>   Patterns: numeric, uuid, hash, token (default: numeric)
+  --case-sensitive               Consider case when comparing
+  --keep-www                     Don't strip www. prefix
+  --keep-scheme                  Keep http/https distinction
 
-PARAMETER & QUERY HANDLING:
-  -ip, --ignore-params <list>    Comma-separated query params to remove
-                                 Example: utm_source,utm_medium,fbclid
-  -sp, --sort-params             Sort query parameters alphabetically
-  --path-include-query           In path mode, include normalized query string
+URL PARAMETERS:
+  -ip, --ignore-params <list>    Remove specific params (e.g., utm_source,fbclid)
+  -sp, --sort-params             Sort parameters alphabetically
+  --path-include-query           In path mode, include query string
 
-FILTERING OPTIONS:
-  -ie, --ignore-extensions <ext> Comma-separated extensions to skip (blacklist)
-                                 Example: jpg,png,css,js,woff
-  -fe, --filter-extensions <ext> Only process these extensions (whitelist)
-                                 Example: js,html,php,json
-                                 Note: Cannot be used with --ignore-extensions
-  -ad, --allow-domains <list>    Only process these domains (whitelist)
+FILTERS:
+  -ie, --ignore-extensions <ext> Skip these extensions (e.g., jpg,png,css)
+  -fe, --filter-extensions <ext> Only process these extensions (e.g., js,html,php)
+  -ad, --allow-domains <list>    Only these domains (whitelist)
   -bd, --block-domains <list>    Skip these domains (blacklist)
 
-OUTPUT OPTIONS:
-  -o, --output <format>          Output format (default: text)
-                                 Formats: text, json, csv
-  -c, --counts                   Print occurrence counts for each URL
-  -s, --stats                    Print basic statistics at the end
-  -sd, --stats-detailed          Print detailed statistics with analysis
-  -v, --verbose                  Show warnings and parse errors
+OUTPUT:
+  -o, --output <format>          Format: text, json, csv (default: text)
+  -c, --counts                   Show occurrence counts
+  -s, --stats                    Show statistics
+  -sd, --stats-detailed          Show detailed statistics
+  -v, --verbose                  Show errors and warnings
 
-PERFORMANCE OPTIONS:
-  -w, --workers <n>              Number of parallel workers (default: 1)
-                                 Set to 0 for NumCPU
-  --batch-size <n>               Batch size for parallel processing (default: 1000)
+PERFORMANCE:
+  -w, --workers <n>              Parallel workers (default: 1, 0=auto)
+  --batch-size <n>               Batch size (default: 1000)
 
-STREAMING MODE (NEW in v2.1):
-  --stream                       Process infinite datasets with periodic flush
+ADVANCED:
+  --stream                       Process infinite streams
   --stream-interval <duration>   Flush interval (default: 5s)
-                                 Examples: 1s, 30s, 1m
-  --stream-buffer <n>            Max buffer size before forced flush (default: 10000)
-
-DIFF MODE (NEW in v2.1):
-  -d, --diff <baseline.json>     Compare against baseline JSON file
-  -sb, --save-baseline <file>    Save results as baseline JSON file
-
-CONFIG FILE (NEW in v2.1):
-  --config <path>                Path to config file
-                                 Default: ~/.config/dupdurl/config.yml
+  --stream-buffer <n>            Max buffer before flush (default: 10000)
+  -d, --diff <file>              Compare with baseline JSON
+  -sb, --save-baseline <file>    Save results as baseline JSON
+  --config <path>                Load config file (~/.config/dupdurl/config.yml)
   --save-config <path>           Save current settings to config file
-
-SCOPE CHECKING (NEW in v2.1):
-  -S, --scope <file>             Scope file with domain patterns
-                                 Supports wildcards: *.example.com
-                                 Exclude with !: !staging.example.com
+  -S, --scope <file>             Scope file with domain patterns (*.example.com)
   --out-of-scope                 Show only out-of-scope URLs
-  --scope-stats                  Show in/out scope statistics
-
-STORAGE OPTIONS:
-  --storage <backend>            Storage backend (default: memory)
-                                 Backends: memory, sqlite
-  --db-path <path>               SQLite database path (default: :memory:)
+  --scope-stats                  Show scope statistics
+  --storage <backend>            Backend: memory, sqlite (default: memory)
+  --db-path <path>               SQLite database path
 
 EXAMPLES:
   Basic deduplication:
     cat urls.txt | dupdurl
 
-  Discover unique API endpoints (⭐ MOST USEFUL):
+  Discover API endpoints (RECOMMENDED):
     waybackurls target.com | dupdurl -m path -f
 
-  Enumerate subdomains:
-    waybackurls target.com | dupdurl -m host
+  Filter JavaScript files only:
+    waybackurls target.com | dupdurl -fe js
 
-  Find parameter combinations:
-    waybackurls target.com | dupdurl -m params | grep "redirect\|callback"
-
-  Filter only JavaScript and JSON files:
-    waybackurls target.com | dupdurl --filter-extensions=js,json
-
-  Full bug bounty workflow:
-    waybackurls target.com | dupdurl -f -ie jpg,png,css -stats
-
-  With parallel processing:
-    cat urls.txt | dupdurl --workers=4 --output=json
-
-  Streaming mode for live logs:
-    tail -f access.log | dupdurl --stream --stream-interval=10s --fuzzy
-
-  Diff mode for change tracking:
-    waybackurls target.com | dupdurl --save-baseline=day1.json
-    waybackurls target.com | dupdurl --diff=day1.json
-
-  Scope checking:
-    echo "*.example.com" > scope.txt
-    echo "!dev.example.com" >> scope.txt
-    cat urls.txt | dupdurl --scope=scope.txt --scope-stats
+  Full workflow with stats:
+    waybackurls target.com | dupdurl -f -ie jpg,png,css -s
 
 MORE INFO:
   Documentation: https://github.com/lcalzada-xor/dupdurl

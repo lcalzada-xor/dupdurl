@@ -2,6 +2,59 @@
 
 All notable changes to dupdurl will be documented in this file.
 
+## [v2.2.0] - 2025-11-13
+
+### 🎨 UX Improvements
+
+#### Optimized Help Output
+- **IMPROVED**: Simplified `-h` output from ~100 to ~60 lines (40% reduction)
+- **IMPROVED**: Categorized flags: BASIC OPTIONS, URL PARAMETERS, FILTERS, OUTPUT, PERFORMANCE, ADVANCED
+- **IMPROVED**: Single-line descriptions for all flags (removed verbose bullets and emojis)
+- **IMPROVED**: Reduced examples from 11 to 4 essential use cases
+- **IMPROVED**: Cleaner, more professional appearance
+- **REMOVED**: Redundant information and promotional content from help text
+
+#### Optimized README Documentation
+- **IMPROVED**: Condensed README from 780 to 309 lines (60% reduction)
+- **IMPROVED**: Cleaner structure with better navigation and quick reference
+- **IMPROVED**: Modes section now more concise with inline examples
+- **IMPROVED**: Single comprehensive flags table instead of multiple scattered tables
+- **IMPROVED**: FAQ condensed to 5 essential questions
+- **REMOVED**: Comparison tables with other tools
+- **REMOVED**: Duplicate "Real-World Workflows" sections
+- **REMOVED**: Excessive promotional content and badges
+- **REMOVED**: Obsolete roadmap items
+
+### 🐛 Bug Fixes
+
+#### Case Sensitivity Issues
+- **FIXED**: Case sensitivity in path mode - paths now deduplicate correctly regardless of case
+  - Example: `/API/USERS` and `/api/users` now correctly deduplicate
+- **FIXED**: Parameter names now normalize to lowercase in params mode
+  - Example: `ID` and `id` now treated as same parameter
+
+#### Mode Selection Issues
+- **FIXED**: Mode selection logic - all modes (url, path, host, params, raw) now work correctly
+- **FIXED**: Processor was calling `NormalizeURL()` directly instead of respecting selected mode via `NormalizeLine()`
+
+#### Extension Filtering
+- **FIXED**: Extension filters now work in path/host modes (not just url mode)
+- **FIXED**: Extension filtering now applied consistently before mode-specific processing
+
+#### URL Normalization
+- **FIXED**: Default ports (:443 for HTTPS, :80 for HTTP) now removed correctly
+- **FIXED**: Normalization order corrected - lowercase conversion now happens BEFORE www removal
+  - Example: `WWW.EXAMPLE.COM` now correctly deduplicates with `example.com`
+- **FIXED**: Port removal logic added to `normalizeHost()`, `extractHost()`, and `extractPath()`
+
+### 📝 Documentation
+- Streamlined user experience across help output and README
+- Improved readability and maintainability
+- Reduced cognitive load for new users
+- Better onboarding experience
+
+---
+
 ## [v2.1.0] - 2025-11-13
 
 ### 🎨 UI/UX Improvements

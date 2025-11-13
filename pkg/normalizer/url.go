@@ -192,10 +192,19 @@ func (c *Config) normalizeScheme(u *url.URL) {
 }
 
 func (c *Config) normalizeHost(u *url.URL) {
+	// Normalize case FIRST
 	if !c.CaseSensitive {
 		u.Host = strings.ToLower(u.Host)
 	}
 
+	// Remove default ports
+	if u.Scheme == "https" && strings.HasSuffix(u.Host, ":443") {
+		u.Host = strings.TrimSuffix(u.Host, ":443")
+	} else if u.Scheme == "http" && strings.HasSuffix(u.Host, ":80") {
+		u.Host = strings.TrimSuffix(u.Host, ":80")
+	}
+
+	// Remove www (after lowercasing)
 	if !c.KeepWWW && strings.HasPrefix(u.Host, "www.") {
 		u.Host = strings.TrimPrefix(u.Host, "www.")
 	}
@@ -272,13 +281,30 @@ func (c *Config) extractHost(line string) (string, error) {
 		return line, nil
 	}
 
-	h := u.Host
-	if !c.KeepWWW && strings.HasPrefix(h, "www.") {
-		h = strings.TrimPrefix(h, "www.")
+	// Check extension filtering BEFORE processing
+	if err := c.checkExtensionFilter(u.Path); err != nil {
+		return "", err
 	}
+
+	h := u.Host
+
+	// Normalize case FIRST
 	if !c.CaseSensitive {
 		h = strings.ToLower(h)
 	}
+
+	// Remove default ports
+	if u.Scheme == "https" && strings.HasSuffix(h, ":443") {
+		h = strings.TrimSuffix(h, ":443")
+	} else if u.Scheme == "http" && strings.HasSuffix(h, ":80") {
+		h = strings.TrimSuffix(h, ":80")
+	}
+
+	// Remove www (after lowercasing)
+	if !c.KeepWWW && strings.HasPrefix(h, "www.") {
+		h = strings.TrimPrefix(h, "www.")
+	}
+
 	return h, nil
 }
 
@@ -291,12 +317,28 @@ func (c *Config) extractPath(line string) (string, error) {
 		return line, nil
 	}
 
-	host := u.Host
-	if !c.KeepWWW && strings.HasPrefix(host, "www.") {
-		host = strings.TrimPrefix(host, "www.")
+	// Check extension filtering BEFORE processing
+	if err := c.checkExtensionFilter(u.Path); err != nil {
+		return "", err
 	}
+
+	host := u.Host
+
+	// Normalize case FIRST
 	if !c.CaseSensitive {
 		host = strings.ToLower(host)
+	}
+
+	// Remove default ports
+	if u.Scheme == "https" && strings.HasSuffix(host, ":443") {
+		host = strings.TrimSuffix(host, ":443")
+	} else if u.Scheme == "http" && strings.HasSuffix(host, ":80") {
+		host = strings.TrimSuffix(host, ":80")
+	}
+
+	// Remove www (after lowercasing)
+	if !c.KeepWWW && strings.HasPrefix(host, "www.") {
+		host = strings.TrimPrefix(host, "www.")
 	}
 
 	path := NormalizePath(u.Path)
