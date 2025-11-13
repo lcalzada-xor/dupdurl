@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://example.com/page1",
+    "count": 1
+  },
+  {
+    "url": "https://example.com/page2",
+    "count": 1
+  },
+  {
+    "url": "https://example.com/page3",
+    "count": 1
+  }
+]

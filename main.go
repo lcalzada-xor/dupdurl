@@ -1,557 +1,628 @@
-// dedup.go - Advanced URL deduplication tool for bug bounty pipelines
+// dupdurl - Advanced URL deduplication tool for bug bounty pipelines
+//
+// A fast, powerful URL deduplication tool designed for security researchers
+// and bug bounty hunters. Features fuzzy matching, parameter filtering,
+// parallel processing, and multi-format output.
 //
 // Usage examples:
-//   cat urls.txt | go run dedup.go                # print unique URLs (url mode)
-//   cat urls.txt | go run dedup.go -mode=path     # dedupe by path (host+path)
-//   cat urls.txt | go run dedup.go -mode=params   # dedupe by unique parameter names
-//   cat urls.txt | go run dedup.go -counts        # print "count url" sorted by first appearance
-//   cat urls.txt | go run dedup.go -ignore-params=utm_source,utm_medium -sort-params
-//   cat urls.txt | go run dedup.go -fuzzy         # normalize numeric IDs in paths
-//   cat urls.txt | go run dedup.go -ignore-extensions=jpg,png,css -stats
-//   cat urls.txt | go run dedup.go -output=json   # JSON output format
+//   cat urls.txt | dupdurl                    # print unique URLs
+//   cat urls.txt | dupdurl -fuzzy             # with fuzzy ID matching
+//   cat urls.txt | dupdurl -mode=path         # dedupe by path only
+//   cat urls.txt | dupdurl -workers=4         # parallel processing
+//   cat urls.txt | dupdurl -output=json       # JSON output
+//   cat urls.txt | dupdurl -storage=sqlite    # use SQLite for massive datasets
 //
-// Build: go build -o dedup dedup.go
+// Build: go build -o dupdurl
 
 package main
 
 import (
-	"bufio"
-	"encoding/csv"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
 	"os"
-	"regexp"
-	"sort"
+	"runtime"
 	"strings"
+	"time"
+
+	"github.com/lcalzada-xor/dupdurl/pkg/config"
+	"github.com/lcalzada-xor/dupdurl/pkg/deduplicator"
+	"github.com/lcalzada-xor/dupdurl/pkg/diff"
+	"github.com/lcalzada-xor/dupdurl/pkg/normalizer"
+	"github.com/lcalzada-xor/dupdurl/pkg/output"
+	"github.com/lcalzada-xor/dupdurl/pkg/processor"
+	"github.com/lcalzada-xor/dupdurl/pkg/scope"
 )
 
-var (
+// CLIConfig holds all command-line flags
+type CLIConfig struct {
 	// Core options
-	mode          = flag.String("mode", "url", "normalization mode: url|path|host|raw|params")
-	ignoreParams  = flag.String("ignore-params", "", "comma-separated query params to remove (e.g. utm_source,fbclid)")
-	sortParams    = flag.Bool("sort-params", false, "sort query parameters alphabetically")
-	ignoreFrag    = flag.Bool("ignore-fragment", true, "remove URL fragment (#...)")
-	caseSensitive = flag.Bool("case-sensitive", false, "consider case when comparing paths/hosts")
-	keepWWW       = flag.Bool("keep-www", false, "don't strip leading www. from host")
-	keepScheme    = flag.Bool("keep-scheme", false, "distinguish between http:// and https://")
-	trimSpaces    = flag.Bool("trim", true, "trim surrounding spaces")
-	
+	Mode             string
+	IgnoreParams     string
+	SortParams       bool
+	IgnoreFragment   bool
+	CaseSensitive    bool
+	KeepWWW          bool
+	KeepScheme       bool
+	TrimSpaces       bool
+
 	// Output options
-	printCounts   = flag.Bool("counts", false, "print counts before each unique entry")
-	outputFormat  = flag.String("output", "text", "output format: text|json|csv")
-	showStats     = flag.Bool("stats", false, "print statistics at the end")
-	verbose       = flag.Bool("verbose", false, "verbose mode: show warnings and parse errors")
-	
+	PrintCounts      bool
+	OutputFormat     string
+	ShowStats        bool
+	ShowStatsDetailed bool
+	Verbose          bool
+
 	// Advanced normalization
-	fuzzyMode         = flag.Bool("fuzzy", false, "replace numeric IDs in paths with {id} placeholder")
-	pathIncludeQuery  = flag.Bool("path-include-query", false, "in path mode, include normalized query string")
-	
+	FuzzyMode        bool
+	FuzzyPatterns    string
+	PathIncludeQuery bool
+	IgnoreExtensions string
+
 	// Filtering
-	allowDomains  = flag.String("allow-domains", "", "comma-separated list of allowed domains (whitelist)")
-	blockDomains  = flag.String("block-domains", "", "comma-separated list of blocked domains (blacklist)")
-	
-	// Statistics
-	stats Statistics
-)
+	AllowDomains     string
+	BlockDomains     string
 
-// Statistics tracks processing metrics
-type Statistics struct {
-	TotalProcessed int
-	UniqueURLs     int
-	Duplicates     int
-	ParseErrors    int
-	Filtered       int
+	// Performance
+	Workers          int
+	BatchSize        int
+
+	// Storage
+	StorageBackend   string
+	DBPath           string
+
+	// Config file
+	ConfigFile string
+	Profile    string
+	SaveConfig string
+
+	// Diff mode
+	DiffBaseline string
+	SaveBaseline string
+
+	// Streaming mode
+	Streaming              bool
+	StreamingFlushInterval string
+	StreamingMaxBuffer     int
+
+	// Scope checking
+	ScopeFile      string
+	OutOfScope     bool
+	ScopeStats     bool
 }
 
-// URLEntry represents a deduplicated URL with its count
-type URLEntry struct {
-	URL   string `json:"url"`
-	Count int    `json:"count"`
+// ParseFlags parses command-line flags and returns configuration
+func ParseFlags() *CLIConfig {
+	config := &CLIConfig{}
+
+	// Override default Usage to show custom help
+	flag.Usage = printUsage
+
+	// === CORE NORMALIZATION OPTIONS ===
+	flag.StringVar(&config.Mode, "mode", "url", "")
+	flag.StringVar(&config.Mode, "m", "url", "")
+
+	flag.BoolVar(&config.FuzzyMode, "fuzzy", false, "")
+	flag.BoolVar(&config.FuzzyMode, "f", false, "")
+
+	flag.StringVar(&config.FuzzyPatterns, "fuzzy-patterns", "numeric", "")
+	flag.StringVar(&config.FuzzyPatterns, "fp", "numeric", "")
+
+	flag.BoolVar(&config.IgnoreFragment, "ignore-fragment", true, "")
+	flag.BoolVar(&config.CaseSensitive, "case-sensitive", false, "")
+	flag.BoolVar(&config.KeepWWW, "keep-www", false, "")
+	flag.BoolVar(&config.KeepScheme, "keep-scheme", false, "")
+	flag.BoolVar(&config.TrimSpaces, "trim", true, "")
+	flag.BoolVar(&config.TrimSpaces, "t", true, "")
+
+	// === PARAMETER & QUERY HANDLING ===
+	flag.StringVar(&config.IgnoreParams, "ignore-params", "", "")
+	flag.StringVar(&config.IgnoreParams, "ip", "", "")
+
+	flag.BoolVar(&config.SortParams, "sort-params", false, "")
+	flag.BoolVar(&config.SortParams, "sp", false, "")
+
+	flag.BoolVar(&config.PathIncludeQuery, "path-include-query", false, "")
+
+	// === FILTERING OPTIONS ===
+	flag.StringVar(&config.IgnoreExtensions, "ignore-extensions", "", "")
+	flag.StringVar(&config.IgnoreExtensions, "ie", "", "")
+
+	flag.StringVar(&config.AllowDomains, "allow-domains", "", "")
+	flag.StringVar(&config.AllowDomains, "ad", "", "")
+
+	flag.StringVar(&config.BlockDomains, "block-domains", "", "")
+	flag.StringVar(&config.BlockDomains, "bd", "", "")
+
+	// === OUTPUT OPTIONS ===
+	flag.StringVar(&config.OutputFormat, "output", "text", "")
+	flag.StringVar(&config.OutputFormat, "o", "text", "")
+
+	flag.BoolVar(&config.PrintCounts, "counts", false, "")
+	flag.BoolVar(&config.PrintCounts, "c", false, "")
+
+	flag.BoolVar(&config.ShowStats, "stats", false, "")
+	flag.BoolVar(&config.ShowStats, "s", false, "")
+
+	flag.BoolVar(&config.ShowStatsDetailed, "stats-detailed", false, "")
+	flag.BoolVar(&config.ShowStatsDetailed, "sd", false, "")
+
+	flag.BoolVar(&config.Verbose, "verbose", false, "")
+	flag.BoolVar(&config.Verbose, "v", false, "")
+
+	// === PERFORMANCE OPTIONS ===
+	flag.IntVar(&config.Workers, "workers", 1, "")
+	flag.IntVar(&config.Workers, "w", 1, "")
+
+	flag.IntVar(&config.BatchSize, "batch-size", 1000, "")
+
+	// === STREAMING MODE ===
+	flag.BoolVar(&config.Streaming, "stream", false, "")
+	flag.StringVar(&config.StreamingFlushInterval, "stream-interval", "5s", "")
+	flag.IntVar(&config.StreamingMaxBuffer, "stream-buffer", 10000, "")
+
+	// === DIFF MODE ===
+	flag.StringVar(&config.DiffBaseline, "diff", "", "")
+	flag.StringVar(&config.DiffBaseline, "d", "", "")
+
+	flag.StringVar(&config.SaveBaseline, "save-baseline", "", "")
+	flag.StringVar(&config.SaveBaseline, "sb", "", "")
+
+	// === CONFIG FILE ===
+	flag.StringVar(&config.ConfigFile, "config", "", "")
+	flag.StringVar(&config.Profile, "profile", "", "")
+	flag.StringVar(&config.Profile, "p", "", "")
+	flag.StringVar(&config.SaveConfig, "save-config", "", "")
+
+	// === STORAGE OPTIONS ===
+	flag.StringVar(&config.StorageBackend, "storage", "memory", "")
+	flag.StringVar(&config.DBPath, "db-path", ":memory:", "")
+
+	// === SCOPE CHECKING ===
+	flag.StringVar(&config.ScopeFile, "scope", "", "")
+	flag.StringVar(&config.ScopeFile, "S", "", "")
+	flag.BoolVar(&config.OutOfScope, "out-of-scope", false, "")
+	flag.BoolVar(&config.ScopeStats, "scope-stats", false, "")
+
+	flag.Parse()
+	return config
 }
 
-func normalizeURL(raw string, ignoredSet, allowedDomains, blockedDomains map[string]struct{}) (string, error) {
-	if *trimSpaces {
-		raw = strings.TrimSpace(raw)
-	}
-	
-	u, err := url.Parse(raw)
-	if err != nil {
-		return "", fmt.Errorf("parse error: %w", err)
-	}
+// printUsage prints a professional, categorized help message
+func printUsage() {
+	fmt.Fprintf(os.Stderr, `dupdurl v2.1 - URL Deduplication Tool for Bug Bounty & Pentesting
 
-	// Check domain filtering
-	if len(allowedDomains) > 0 {
-		host := strings.ToLower(u.Host)
-		if strings.HasPrefix(host, "www.") {
-			host = strings.TrimPrefix(host, "www.")
-		}
-		if _, ok := allowedDomains[host]; !ok {
-			return "", fmt.Errorf("domain not in whitelist: %s", u.Host)
-		}
-	}
-	
-	if len(blockedDomains) > 0 {
-		host := strings.ToLower(u.Host)
-		if strings.HasPrefix(host, "www.") {
-			host = strings.TrimPrefix(host, "www.")
-		}
-		if _, ok := blockedDomains[host]; ok {
-			return "", fmt.Errorf("domain in blacklist: %s", u.Host)
-		}
-	}
+USAGE:
+  dupdurl [OPTIONS] < urls.txt
+  cat urls.txt | dupdurl [OPTIONS]
+  waybackurls target.com | dupdurl --fuzzy --stats
 
-	// Lowercase scheme unless keepScheme or caseSensitive
-	if !*caseSensitive && !*keepScheme {
-		u.Scheme = strings.ToLower(u.Scheme)
-	} else if !*keepScheme {
-		u.Scheme = "https" // normalize to https if not keeping scheme
-	}
+CORE NORMALIZATION OPTIONS:
+  -m, --mode <mode>              Normalization mode (default: url)
+                                 Modes: url, path, host, params, raw
+  -f, --fuzzy                    Enable fuzzy matching for IDs
+  -fp, --fuzzy-patterns <list>   Fuzzy patterns (default: numeric)
+                                 Patterns: numeric, uuid, hash, token (comma-separated)
+  --ignore-fragment              Remove URL fragments (#...) (default: true)
+  --case-sensitive               Consider case when comparing paths/hosts
+  --keep-www                     Don't strip leading www. from host
+  --keep-scheme                  Distinguish between http:// and https://
+  -t, --trim                     Trim surrounding spaces (default: true)
 
-	// Lowercase host unless caseSensitive
-	if !*caseSensitive {
-		u.Host = strings.ToLower(u.Host)
-	}
+PARAMETER & QUERY HANDLING:
+  -ip, --ignore-params <list>    Comma-separated query params to remove
+                                 Example: utm_source,utm_medium,fbclid
+  -sp, --sort-params             Sort query parameters alphabetically
+  --path-include-query           In path mode, include normalized query string
 
-	// Strip leading "www." by default
-	if !*keepWWW {
-		if strings.HasPrefix(u.Host, "www.") {
-			u.Host = strings.TrimPrefix(u.Host, "www.")
-		}
-	}
+FILTERING OPTIONS:
+  -ie, --ignore-extensions <ext> Comma-separated extensions to skip
+                                 Example: jpg,png,css,js,woff
+  -ad, --allow-domains <list>    Only process these domains (whitelist)
+  -bd, --block-domains <list>    Skip these domains (blacklist)
 
-	// Remove fragment
-	if *ignoreFrag {
-		u.Fragment = ""
-	}
+OUTPUT OPTIONS:
+  -o, --output <format>          Output format (default: text)
+                                 Formats: text, json, csv
+  -c, --counts                   Print occurrence counts for each URL
+  -s, --stats                    Print basic statistics at the end
+  -sd, --stats-detailed          Print detailed statistics with analysis
+  -v, --verbose                  Show warnings and parse errors
 
-	// Normalize path
-	u.Path = normalizePath(u.Path)
+PERFORMANCE OPTIONS:
+  -w, --workers <n>              Number of parallel workers (default: 1)
+                                 Set to 0 for NumCPU
+  --batch-size <n>               Batch size for parallel processing (default: 1000)
 
-	// Apply fuzzy mode (replace numeric IDs)
-	if *fuzzyMode {
-		u.Path = fuzzyPath(u.Path)
-	}
+STREAMING MODE (NEW in v2.1):
+  --stream                       Process infinite datasets with periodic flush
+  --stream-interval <duration>   Flush interval (default: 5s)
+                                 Examples: 1s, 30s, 1m
+  --stream-buffer <n>            Max buffer size before forced flush (default: 10000)
 
-	// Query params handling - keep values by default
-	q := u.Query()
-	
-	// Delete ignored params
-	for p := range ignoredSet {
-		q.Del(p)
-	}
-	
-	if *sortParams {
-		// Build sorted query with sorted values
-		u.RawQuery = buildSortedQuery(q)
-	} else {
-		// Keep parameter values as-is
-		u.RawQuery = q.Encode()
-	}
+DIFF MODE (NEW in v2.1):
+  -d, --diff <baseline.json>     Compare against baseline JSON file
+  -sb, --save-baseline <file>    Save results as baseline JSON file
 
-	return u.String(), nil
+CONFIG FILE (NEW in v2.1):
+  --config <path>                Path to config file
+                                 Default: ~/.config/dupdurl/config.yml
+  -p, --profile <name>           Use predefined profile
+                                 Profiles: bugbounty, aggressive, conservative
+  --save-config <path>           Save current settings to config file
+
+SCOPE CHECKING (NEW in v2.1):
+  -S, --scope <file>             Scope file with domain patterns
+                                 Supports wildcards: *.example.com
+                                 Exclude with !: !staging.example.com
+  --out-of-scope                 Show only out-of-scope URLs
+  --scope-stats                  Show in/out scope statistics
+
+STORAGE OPTIONS:
+  --storage <backend>            Storage backend (default: memory)
+                                 Backends: memory, sqlite
+  --db-path <path>               SQLite database path (default: :memory:)
+
+EXAMPLES:
+  Basic deduplication:
+    cat urls.txt | dupdurl
+
+  Bug bounty workflow:
+    waybackurls target.com | dupdurl --fuzzy --ignore-params=utm_source,fbclid --stats
+
+  With parallel processing:
+    cat urls.txt | dupdurl --workers=4 --output=json
+
+  Streaming mode for live logs:
+    tail -f access.log | dupdurl --stream --stream-interval=10s --fuzzy
+
+  Diff mode for change tracking:
+    waybackurls target.com | dupdurl --save-baseline=day1.json
+    waybackurls target.com | dupdurl --diff=day1.json
+
+  Using config profiles:
+    cat urls.txt | dupdurl --profile=bugbounty
+
+  Scope checking:
+    echo "*.example.com" > scope.txt
+    echo "!dev.example.com" >> scope.txt
+    cat urls.txt | dupdurl --scope=scope.txt --scope-stats
+
+MORE INFO:
+  Documentation: https://github.com/lcalzada-xor/dupdurl
+  Report bugs:   https://github.com/lcalzada-xor/dupdurl/issues
+
+`)
 }
 
-func normalizePath(p string) string {
-	if p == "" {
-		return "/"
-	}
-	
-	// Collapse multiple slashes
-	p = collapseSlashes(p)
-	
-	// Remove trailing slash (except root)
-	if len(p) > 1 && strings.HasSuffix(p, "/") {
-		p = strings.TrimSuffix(p, "/")
-	}
-	
-	return p
-}
-
-func collapseSlashes(p string) string {
-	if p == "" {
-		return "/"
-	}
-	parts := strings.Split(p, "/")
-	out := make([]string, 0, len(parts))
-	for _, seg := range parts {
-		if seg == "" {
-			if len(out) == 0 {
-				out = append(out, "")
-			}
-			continue
-		}
-		out = append(out, seg)
-	}
-	res := strings.Join(out, "/")
-	if !strings.HasPrefix(res, "/") {
-		res = "/" + res
-	}
-	return res
-}
-
-var numericIDRegex = regexp.MustCompile(`/\d+(/|$)`)
-
-func fuzzyPath(p string) string {
-	// Replace numeric path segments with {id}
-	// Example: /user/12345/profile -> /user/{id}/profile
-	return numericIDRegex.ReplaceAllString(p, "/{id}$1")
-}
-
-func buildSortedQuery(q url.Values) string {
-	if len(q) == 0 {
-		return ""
-	}
-	
-	keys := make([]string, 0, len(q))
-	for k := range q {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	
-	var sb strings.Builder
-	first := true
-	for _, k := range keys {
-		vs := q[k]
-		sort.Strings(vs) // Deterministic order for values too
-		for _, v := range vs {
-			if !first {
-				sb.WriteByte('&')
-			}
-			sb.WriteString(url.QueryEscape(k))
-			if v != "" {
-				sb.WriteByte('=')
-				sb.WriteString(url.QueryEscape(v))
-			}
-			first = false
-		}
-	}
-	return sb.String()
-}
-
-// createDedupKey creates a key for deduplication that includes parameter names but not values
-// This is used when we want to deduplicate based on param structure but keep sample values
-func createDedupKey(raw string, ignoredSet, allowedDomains, blockedDomains map[string]struct{}) (string, error) {
-	if *trimSpaces {
-		raw = strings.TrimSpace(raw)
-	}
-	
-	u, err := url.Parse(raw)
-	if err != nil {
-		return "", fmt.Errorf("parse error: %w", err)
+// Validate checks if the configuration is valid
+func (c *CLIConfig) Validate() error {
+	// Validate mode
+	validModes := []string{"url", "path", "host", "raw", "params"}
+	if !contains(validModes, c.Mode) {
+		return fmt.Errorf("invalid mode: %s (valid: %s)", c.Mode, strings.Join(validModes, ", "))
 	}
 
-	// Apply same normalization as normalizeURL
-	if !*caseSensitive && !*keepScheme {
-		u.Scheme = strings.ToLower(u.Scheme)
-	} else if !*keepScheme {
-		u.Scheme = "https"
+	// Validate output format
+	validFormats := []string{"text", "json", "csv"}
+	if !contains(validFormats, c.OutputFormat) {
+		return fmt.Errorf("invalid output format: %s (valid: %s)", c.OutputFormat, strings.Join(validFormats, ", "))
 	}
 
-	if !*caseSensitive {
-		u.Host = strings.ToLower(u.Host)
+	// Validate storage backend
+	validBackends := []string{"memory", "sqlite"}
+	if !contains(validBackends, c.StorageBackend) {
+		return fmt.Errorf("invalid storage backend: %s (valid: %s)", c.StorageBackend, strings.Join(validBackends, ", "))
 	}
 
-	if !*keepWWW {
-		if strings.HasPrefix(u.Host, "www.") {
-			u.Host = strings.TrimPrefix(u.Host, "www.")
-		}
+	// Validate workers
+	if c.Workers < 0 {
+		return fmt.Errorf("workers must be >= 0")
 	}
 
-	if *ignoreFrag {
-		u.Fragment = ""
+	// Validate batch size
+	if c.BatchSize < 1 {
+		return fmt.Errorf("batch-size must be >= 1")
 	}
 
-	u.Path = normalizePath(u.Path)
-
-	if *fuzzyMode {
-		u.Path = fuzzyPath(u.Path)
-	}
-
-	// For the dedup key, we only keep parameter NAMES, not values
-	q := u.Query()
-	
-	// Delete ignored params
-	for p := range ignoredSet {
-		q.Del(p)
-	}
-	
-	// Build query string with param names only (no values)
-	if len(q) > 0 {
-		keys := make([]string, 0, len(q))
-		for k := range q {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		u.RawQuery = strings.Join(keys, "&") + "="
-	} else {
-		u.RawQuery = ""
-	}
-
-	return u.String(), nil
-}
-
-func extractParams(line string) (string, error) {
-	u, err := url.Parse(line)
-	if err != nil {
-		return "", err
-	}
-	
-	q := u.Query()
-	if len(q) == 0 {
-		return "", fmt.Errorf("no parameters")
-	}
-	
-	// Get unique parameter names, sorted
-	params := make([]string, 0, len(q))
-	for k := range q {
-		params = append(params, k)
-	}
-	sort.Strings(params)
-	
-	return strings.Join(params, ","), nil
-}
-
-func normalizeLine(line string, ignoredSet, allowedDomains, blockedDomains map[string]struct{}) (string, error) {
-	if *trimSpaces {
-		line = strings.TrimSpace(line)
-	}
-	if line == "" {
-		return "", fmt.Errorf("empty line")
-	}
-
-	switch *mode {
-	case "raw":
-		if !*caseSensitive {
-			return strings.ToLower(line), nil
-		}
-		return line, nil
-		
-	case "host":
-		u, err := url.Parse(line)
-		if err != nil {
-			if !*caseSensitive {
-				return strings.ToLower(line), nil
-			}
-			return line, nil
-		}
-		h := u.Host
-		if !*keepWWW && strings.HasPrefix(h, "www.") {
-			h = strings.TrimPrefix(h, "www.")
-		}
-		if !*caseSensitive {
-			h = strings.ToLower(h)
-		}
-		return h, nil
-		
-	case "path":
-		u, err := url.Parse(line)
-		if err != nil {
-			if !*caseSensitive {
-				return strings.ToLower(line), nil
-			}
-			return line, nil
-		}
-		
-		host := u.Host
-		if !*keepWWW && strings.HasPrefix(host, "www.") {
-			host = strings.TrimPrefix(host, "www.")
-		}
-		if !*caseSensitive {
-			host = strings.ToLower(host)
-		}
-		
-		path := normalizePath(u.Path)
-		if *fuzzyMode {
-			path = fuzzyPath(path)
-		}
-		
-		result := host + path
-		
-		// Optionally include normalized query
-		if *pathIncludeQuery && u.RawQuery != "" {
-			q := u.Query()
-			for p := range ignoredSet {
-				q.Del(p)
-			}
-			if *sortParams {
-				result += "?" + buildSortedQuery(q)
-			} else {
-				result += "?" + q.Encode()
-			}
-		}
-		
-		return result, nil
-		
-	case "params":
-		return extractParams(line)
-		
-	case "url":
-		return normalizeURL(line, ignoredSet, allowedDomains, blockedDomains)
-		
-	default:
-		return "", fmt.Errorf("unknown mode: %s", *mode)
-	}
-}
-
-func parseSet(s string) map[string]struct{} {
-	m := map[string]struct{}{}
-	if s == "" {
-		return m
-	}
-	for _, item := range strings.Split(s, ",") {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			continue
-		}
-		m[strings.ToLower(item)] = struct{}{}
-	}
-	return m
-}
-
-func outputText(entries []URLEntry) {
-	for _, entry := range entries {
-		if *printCounts {
-			fmt.Printf("%d %s\n", entry.Count, entry.URL)
-		} else {
-			fmt.Println(entry.URL)
-		}
-	}
-}
-
-func outputJSON(entries []URLEntry) error {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(entries)
-}
-
-func outputCSV(entries []URLEntry) error {
-	w := csv.NewWriter(os.Stdout)
-	defer w.Flush()
-	
-	// Write header
-	if err := w.Write([]string{"url", "count"}); err != nil {
-		return err
-	}
-	
-	// Write data
-	for _, entry := range entries {
-		if err := w.Write([]string{entry.URL, fmt.Sprintf("%d", entry.Count)}); err != nil {
-			return err
-		}
-	}
-	
 	return nil
 }
 
-func printStats() {
-	fmt.Fprintln(os.Stderr, "\n=== Statistics ===")
-	fmt.Fprintf(os.Stderr, "Total URLs processed: %d\n", stats.TotalProcessed)
-	fmt.Fprintf(os.Stderr, "Unique URLs:          %d\n", stats.UniqueURLs)
-	fmt.Fprintf(os.Stderr, "Duplicates removed:   %d\n", stats.Duplicates)
-	fmt.Fprintf(os.Stderr, "Parse errors:         %d\n", stats.ParseErrors)
-	fmt.Fprintf(os.Stderr, "Filtered out:         %d\n", stats.Filtered)
-	fmt.Fprintln(os.Stderr, "==================")
+// ToNormalizerConfig converts CLI config to normalizer config
+func (c *CLIConfig) ToNormalizerConfig() *normalizer.Config {
+	config := normalizer.NewConfig()
+
+	config.Mode = c.Mode
+	config.IgnoreParams = normalizer.ParseSet(c.IgnoreParams)
+	config.SortParams = c.SortParams
+	config.IgnoreFragment = c.IgnoreFragment
+	config.CaseSensitive = c.CaseSensitive
+	config.KeepWWW = c.KeepWWW
+	config.KeepScheme = c.KeepScheme
+	config.TrimSpaces = c.TrimSpaces
+	config.FuzzyMode = c.FuzzyMode
+	config.PathIncludeQuery = c.PathIncludeQuery
+	config.AllowDomains = normalizer.ParseSet(c.AllowDomains)
+	config.BlockDomains = normalizer.ParseSet(c.BlockDomains)
+	config.IgnoreExtensions = normalizer.ParseSet(c.IgnoreExtensions)
+
+	// Configure fuzzy patterns
+	if c.FuzzyMode && c.FuzzyPatterns != "" {
+		patterns := strings.Split(c.FuzzyPatterns, ",")
+		normalizer.EnablePatterns(config.FuzzyPatterns, patterns)
+	}
+
+	return config
+}
+
+// ToProcessorConfig converts CLI config to processor config
+func (c *CLIConfig) ToProcessorConfig() *processor.Config {
+	config := processor.NewConfig()
+
+	config.Normalizer = c.ToNormalizerConfig()
+	config.Workers = c.Workers
+	config.BatchSize = c.BatchSize
+	config.Verbose = c.Verbose
+
+	return config
+}
+
+// contains checks if a slice contains a string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
-	flag.Parse()
-	
-	// Parse sets
-	ignoredSet := parseSet(*ignoreParams)
-	allowedDomains := parseSet(*allowDomains)
-	blockedDomains := parseSet(*blockDomains)
+	// Parse command-line flags
+	cliConfig := ParseFlags()
 
-	// Maps to track first-seen URLs with parameter values
-	seen := map[string]string{} // dedup key -> first full URL with values
-	counts := map[string]int{}
-	order := []string{}
-
-	scanner := bufio.NewScanner(os.Stdin)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 10*1024*1024)
-
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		stats.TotalProcessed++
-		
-		if *trimSpaces && strings.TrimSpace(line) == "" {
-			continue
-		}
-		
-		// Create dedup key (without parameter values for comparison)
-		key, err := createDedupKey(line, ignoredSet, allowedDomains, blockedDomains)
+	// Load config file if specified (or use default location)
+	var fileConfig *config.File
+	if cliConfig.ConfigFile != "" {
+		var err error
+		fileConfig, err = config.Load(cliConfig.ConfigFile)
 		if err != nil {
-			if *verbose {
-				fmt.Fprintf(os.Stderr, "Line %d: %v - %s\n", lineNum, err, line)
-			}
-			if strings.Contains(err.Error(), "parse error") {
-				stats.ParseErrors++
-			} else if strings.Contains(err.Error(), "ignored extension") || 
-			          strings.Contains(err.Error(), "blacklist") ||
-			          strings.Contains(err.Error(), "whitelist") {
-				stats.Filtered++
-			}
-			continue
+			fmt.Fprintf(os.Stderr, "Error loading config file: %v\n", err)
+			os.Exit(1)
 		}
-		
-		// Get normalized URL with values preserved
-		normalizedURL, err := normalizeURL(line, ignoredSet, allowedDomains, blockedDomains)
-		if err != nil {
-			continue
-		}
-		
-		// If this key hasn't been seen, store the first URL with its values
-		if _, ok := seen[key]; !ok {
-			seen[key] = normalizedURL
-			order = append(order, key)
-			stats.UniqueURLs++
-		} else {
-			stats.Duplicates++
-		}
-		counts[key]++
+	} else {
+		// Try to load from default location
+		fileConfig = config.LoadOrDefault()
 	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error reading stdin:", err)
+	// Apply profile if specified
+	if cliConfig.Profile != "" {
+		if err := fileConfig.ApplyProfile(cliConfig.Profile); err != nil {
+			fmt.Fprintf(os.Stderr, "Error applying profile: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// Merge file config with CLI flags (CLI flags take precedence)
+	mergeConfigs(cliConfig, fileConfig)
+
+	// Save config if requested
+	if cliConfig.SaveConfig != "" {
+		if err := fileConfig.Save(cliConfig.SaveConfig); err != nil {
+			fmt.Fprintf(os.Stderr, "Error saving config: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "Config saved to %s\n", cliConfig.SaveConfig)
+		return
+	}
+
+	// Validate configuration
+	if err := cliConfig.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Use -h or --help for usage information\n")
 		os.Exit(1)
 	}
 
-	// Prepare entries with first-seen URLs (which have parameter values)
-	entries := make([]URLEntry, len(order))
-	for i, k := range order {
-		entries[i] = URLEntry{
-			URL:   seen[k],
-			Count: counts[k],
+	// Auto-detect number of workers if set to 0
+	if cliConfig.Workers == 0 {
+		cliConfig.Workers = runtime.NumCPU()
+	}
+
+	// Load scope checker if specified
+	var scopeChecker *scope.Checker
+	if cliConfig.ScopeFile != "" {
+		scopeChecker = scope.NewChecker()
+		if err := scopeChecker.LoadFromFile(cliConfig.ScopeFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading scope file: %v\n", err)
+			os.Exit(1)
+		}
+		if cliConfig.Verbose {
+			stats := scopeChecker.GetStats()
+			fmt.Fprintf(os.Stderr, "Scope loaded: %d includes, %d excludes\n",
+				stats.IncludePatterns, stats.ExcludePatterns)
 		}
 	}
 
+	// Check if we're in diff mode
+	var differ *diff.Differ
+	if cliConfig.DiffBaseline != "" {
+		differ = diff.NewDiffer()
+		if err := differ.LoadBaseline(cliConfig.DiffBaseline); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading baseline: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// Get output formatter
+	formatter, err := output.GetFormatter(cliConfig.OutputFormat, cliConfig.PrintCounts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating formatter: %v\n", err)
+		os.Exit(1)
+	}
+
+	var entries []deduplicator.Entry
+
+	// Choose processing mode: streaming or batch
+	if cliConfig.Streaming {
+		// Streaming mode
+		streamConfig := processor.NewStreamingConfig()
+		streamConfig.Normalizer = cliConfig.ToNormalizerConfig()
+		streamConfig.Workers = cliConfig.Workers
+		streamConfig.Verbose = cliConfig.Verbose
+		streamConfig.Output = formatter
+		streamConfig.OutputWriter = os.Stdout
+
+		// Parse flush interval
+		if cliConfig.StreamingFlushInterval != "" {
+			interval, err := time.ParseDuration(cliConfig.StreamingFlushInterval)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid flush interval: %v\n", err)
+				os.Exit(1)
+			}
+			streamConfig.FlushInterval = interval
+		}
+
+		if cliConfig.StreamingMaxBuffer > 0 {
+			streamConfig.MaxBuffer = cliConfig.StreamingMaxBuffer
+		}
+
+		streamProc := processor.NewStreaming(streamConfig)
+		if err := streamProc.ProcessStreaming(os.Stdin); err != nil {
+			fmt.Fprintf(os.Stderr, "Error processing URLs: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Print statistics if requested
+		stats := streamProc.GetStatistics()
+		if cliConfig.ShowStatsDetailed {
+			stats.PrintDetailed(os.Stderr)
+		} else if cliConfig.ShowStats {
+			stats.Print(os.Stderr)
+		}
+
+		return
+	}
+
+	// Batch mode (original behavior)
+	procConfig := cliConfig.ToProcessorConfig()
+	proc := processor.New(procConfig)
+
+	entries, err = proc.Process(os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error processing URLs: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Apply scope filtering if specified
+	if scopeChecker != nil {
+		// Count stats BEFORE filtering
+		if cliConfig.ScopeStats {
+			inScope, outScope := countScopeStats(entries, scopeChecker)
+			fmt.Fprintf(os.Stderr, "\n=== Scope Statistics ===\n")
+			fmt.Fprintf(os.Stderr, "In scope:     %d URLs\n", inScope)
+			fmt.Fprintf(os.Stderr, "Out of scope: %d URLs\n", outScope)
+			fmt.Fprintf(os.Stderr, "========================\n\n")
+		}
+
+		// Then filter
+		entries = filterByScope(entries, scopeChecker, cliConfig.OutOfScope)
+	}
+
+	// Save baseline if requested
+	if cliConfig.SaveBaseline != "" {
+		if err := diff.SaveBaseline(entries, cliConfig.SaveBaseline); err != nil {
+			fmt.Fprintf(os.Stderr, "Error saving baseline: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "Baseline saved to %s\n", cliConfig.SaveBaseline)
+	}
+
+	// Diff mode
+	if differ != nil {
+		report := differ.Compare(entries)
+		report.PrintReport(os.Stderr)
+		fmt.Fprintf(os.Stderr, "\nSummary: %s\n", report.Summary())
+		return
+	}
+
 	// Output results
-	switch *outputFormat {
-	case "json":
-		if err := outputJSON(entries); err != nil {
-			fmt.Fprintln(os.Stderr, "error writing JSON:", err)
-			os.Exit(1)
-		}
-	case "csv":
-		if err := outputCSV(entries); err != nil {
-			fmt.Fprintln(os.Stderr, "error writing CSV:", err)
-			os.Exit(1)
-		}
-	case "text":
-		outputText(entries)
-	default:
-		fmt.Fprintf(os.Stderr, "unknown output format: %s\n", *outputFormat)
+	if err := formatter.Format(entries, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing output: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Print statistics if requested
-	if *showStats {
-		printStats()
+	stats := proc.GetStatistics()
+	if cliConfig.ShowStatsDetailed {
+		stats.PrintDetailed(os.Stderr)
+	} else if cliConfig.ShowStats {
+		stats.Print(os.Stderr)
 	}
 }
 
-// dedupStandard implements the original deduplication logic
+// mergeConfigs merges file config with CLI config (CLI takes precedence)
+func mergeConfigs(cli *CLIConfig, file *config.File) {
+	// Only apply file config if CLI flag wasn't explicitly set
+	// This is simplified - in production you'd track which flags were actually set
+	if cli.Mode == "url" && file.Mode != "" {
+		cli.Mode = file.Mode
+	}
+	if !cli.FuzzyMode && file.FuzzyMode {
+		cli.FuzzyMode = file.FuzzyMode
+	}
+	if cli.Workers == 1 && file.Workers > 0 {
+		cli.Workers = file.Workers
+	}
+	// Add more field merging as needed
+}
+
+// filterByScope filters entries based on scope checker
+func filterByScope(entries []deduplicator.Entry, checker *scope.Checker, showOutOfScope bool) []deduplicator.Entry {
+	if checker == nil {
+		return entries
+	}
+
+	filtered := make([]deduplicator.Entry, 0, len(entries))
+	for _, entry := range entries {
+		// Parse URL to extract host
+		u, err := url.Parse(entry.URL)
+		if err != nil {
+			// If can't parse, skip it
+			continue
+		}
+
+		inScope := checker.IsInScope(u.Host)
+
+		// Include based on mode
+		if showOutOfScope {
+			// Show only out-of-scope URLs
+			if !inScope {
+				filtered = append(filtered, entry)
+			}
+		} else {
+			// Show only in-scope URLs (default)
+			if inScope {
+				filtered = append(filtered, entry)
+			}
+		}
+	}
+
+	return filtered
+}
+
+// countScopeStats counts in-scope and out-of-scope URLs
+func countScopeStats(entries []deduplicator.Entry, checker *scope.Checker) (inScope, outScope int) {
+	for _, entry := range entries {
+		u, err := url.Parse(entry.URL)
+		if err != nil {
+			continue
+		}
+
+		if checker.IsInScope(u.Host) {
+			inScope++
+		} else {
+			outScope++
+		}
+	}
+	return
+}

@@ -1,0 +1,11 @@
+# Scope file for dupdurl
+# Include domains with wildcards
+example.com
+*.example.com
+target.com
+*.target.com
+
+# Exclude specific subdomains (prefix with !)
+!dev.example.com
+!staging.example.com
+!test.target.com

@@ -1,0 +1,10 @@
+https://www.example.com/page1
+https://example.com/page1
+https://example.com/page1?utm_source=google
+https://example.com/page2
+https://example.com/api/users/123/profile
+https://example.com/api/users/456/profile
+https://example.com/api/users/789/profile
+https://test.com/page1
+https://test.com/page2
+https://example.com/page1#section1
