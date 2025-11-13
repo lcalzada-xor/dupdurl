@@ -22,6 +22,7 @@ type Config struct {
 	AllowDomains     map[string]struct{}
 	BlockDomains     map[string]struct{}
 	IgnoreExtensions map[string]struct{}
+	FilterExtensions map[string]struct{}
 }
 
 // NewConfig creates a default normalization configuration
@@ -35,6 +36,7 @@ func NewConfig() *Config {
 		AllowDomains:   make(map[string]struct{}),
 		BlockDomains:   make(map[string]struct{}),
 		IgnoreExtensions: make(map[string]struct{}),
+		FilterExtensions: make(map[string]struct{}),
 	}
 }
 
@@ -221,13 +223,14 @@ func (c *Config) checkDomainFilters(host string) error {
 }
 
 func (c *Config) checkExtensionFilter(path string) error {
-	if len(c.IgnoreExtensions) == 0 {
-		return nil
-	}
-
 	// Find the last dot in the path
 	lastDot := strings.LastIndex(path, ".")
 	if lastDot == -1 || lastDot == len(path)-1 {
+		// No extension found
+		if len(c.FilterExtensions) > 0 {
+			// Whitelist mode: reject URLs without extension
+			return fmt.Errorf("no extension found (whitelist mode requires extension)")
+		}
 		return nil
 	}
 
@@ -236,11 +239,25 @@ func (c *Config) checkExtensionFilter(path string) error {
 
 	// Check if there's a slash after the dot (not a real extension)
 	if strings.Contains(ext, "/") {
+		if len(c.FilterExtensions) > 0 {
+			return fmt.Errorf("no valid extension found (whitelist mode requires extension)")
+		}
 		return nil
 	}
 
-	if _, ignored := c.IgnoreExtensions[ext]; ignored {
-		return fmt.Errorf("ignored extension: .%s", ext)
+	// Whitelist mode (FilterExtensions): only allow specified extensions
+	if len(c.FilterExtensions) > 0 {
+		if _, allowed := c.FilterExtensions[ext]; !allowed {
+			return fmt.Errorf("extension not in whitelist: .%s", ext)
+		}
+		return nil
+	}
+
+	// Blacklist mode (IgnoreExtensions): ignore specified extensions
+	if len(c.IgnoreExtensions) > 0 {
+		if _, ignored := c.IgnoreExtensions[ext]; ignored {
+			return fmt.Errorf("ignored extension: .%s", ext)
+		}
 	}
 
 	return nil

@@ -58,6 +58,7 @@ type CLIConfig struct {
 	FuzzyPatterns    string
 	PathIncludeQuery bool
 	IgnoreExtensions string
+	FilterExtensions string
 
 	// Filtering
 	AllowDomains     string
@@ -127,6 +128,9 @@ func ParseFlags() *CLIConfig {
 	// === FILTERING OPTIONS ===
 	flag.StringVar(&config.IgnoreExtensions, "ignore-extensions", "", "")
 	flag.StringVar(&config.IgnoreExtensions, "ie", "", "")
+
+	flag.StringVar(&config.FilterExtensions, "filter-extensions", "", "")
+	flag.StringVar(&config.FilterExtensions, "fe", "", "")
 
 	flag.StringVar(&config.AllowDomains, "allow-domains", "", "")
 	flag.StringVar(&config.AllowDomains, "ad", "", "")
@@ -216,8 +220,11 @@ PARAMETER & QUERY HANDLING:
   --path-include-query           In path mode, include normalized query string
 
 FILTERING OPTIONS:
-  -ie, --ignore-extensions <ext> Comma-separated extensions to skip
+  -ie, --ignore-extensions <ext> Comma-separated extensions to skip (blacklist)
                                  Example: jpg,png,css,js,woff
+  -fe, --filter-extensions <ext> Only process these extensions (whitelist)
+                                 Example: js,html,php,json
+                                 Note: Cannot be used with --ignore-extensions
   -ad, --allow-domains <list>    Only process these domains (whitelist)
   -bd, --block-domains <list>    Skip these domains (blacklist)
 
@@ -269,6 +276,9 @@ EXAMPLES:
 
   Bug bounty workflow:
     waybackurls target.com | dupdurl --fuzzy --ignore-params=utm_source,fbclid --stats
+
+  Filter only JavaScript and JSON files:
+    waybackurls target.com | dupdurl --filter-extensions=js,json
 
   With parallel processing:
     cat urls.txt | dupdurl --workers=4 --output=json
@@ -325,6 +335,11 @@ func (c *CLIConfig) Validate() error {
 		return fmt.Errorf("batch-size must be >= 1")
 	}
 
+	// Validate that both ignore-extensions and filter-extensions are not used together
+	if c.IgnoreExtensions != "" && c.FilterExtensions != "" {
+		return fmt.Errorf("cannot use --ignore-extensions and --filter-extensions together (choose blacklist or whitelist)")
+	}
+
 	return nil
 }
 
@@ -345,6 +360,7 @@ func (c *CLIConfig) ToNormalizerConfig() *normalizer.Config {
 	config.AllowDomains = normalizer.ParseSet(c.AllowDomains)
 	config.BlockDomains = normalizer.ParseSet(c.BlockDomains)
 	config.IgnoreExtensions = normalizer.ParseSet(c.IgnoreExtensions)
+	config.FilterExtensions = normalizer.ParseSet(c.FilterExtensions)
 
 	// Configure fuzzy patterns
 	if c.FuzzyMode && c.FuzzyPatterns != "" {

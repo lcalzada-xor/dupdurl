@@ -207,7 +207,8 @@ dupdurl --scope=scope.txt --out-of-scope < urls.txt
 | `--verbose` | `-v` | Verbose mode | `dupdurl -v` |
 | `--workers` | `-w` | Parallel workers | `dupdurl -w 4` |
 | `--ignore-params` | `-ip` | Ignore query params | `dupdurl -ip utm_source,fbclid` |
-| `--ignore-extensions` | `-ie` | Ignore extensions | `dupdurl -ie jpg,png,css` |
+| `--ignore-extensions` | `-ie` | Ignore extensions (blacklist) | `dupdurl -ie jpg,png,css` |
+| `--filter-extensions` | `-fe` | Only allow extensions (whitelist) | `dupdurl -fe js,json,html` |
 | `--allow-domains` | `-ad` | Domain whitelist | `dupdurl -ad example.com` |
 | `--block-domains` | `-bd` | Domain blacklist | `dupdurl -bd ads.com` |
 | `--profile` | `-p` | Use config profile | `dupdurl -p bugbounty` |
@@ -239,6 +240,21 @@ waybackurls api.example.com | dupdurl -f -m path
 #   /api/users/789/profile
 # Output:
 #   /api/users/{id}/profile
+```
+
+### 🎯 Filter by File Extensions (NEW!)
+```bash
+# Only process JavaScript files
+waybackurls target.com | dupdurl --filter-extensions=js
+
+# Multiple extensions - focus on code files
+waybackurls target.com | dupdurl -fe js,json,php,html
+
+# Find only API endpoints (JSON/XML)
+katana -u target.com | dupdurl -fe json,xml -fuzzy
+
+# Combine with other filters
+waybackurls target.com | dupdurl -fe js,html -fuzzy -stats
 ```
 
 ### 📊 JSON Output for Analysis
@@ -294,7 +310,7 @@ cat urls.txt | dupdurl -block-domains=cdn.example.com,static.example.com
 
 ### Advanced Features (v2.0+)
 - 🔥 **Fuzzy mode**: Replace numeric IDs in paths with `{id}` placeholders
-- 🔥 **Extension filtering**: Skip specific file extensions (jpg, png, css, js, etc.)
+- 🔥 **Extension filtering**: Skip specific file extensions (blacklist) or only allow certain extensions (whitelist)
 - 🔥 **Domain filtering**: Whitelist or blacklist domains
 - 🔥 **Multiple output formats**: Text, JSON, CSV
 - 🔥 **Statistics tracking**: See detailed processing metrics
@@ -312,7 +328,14 @@ cat urls.txt | dupdurl -block-domains=cdn.example.com,static.example.com
 | `-sort-params` | `false` | Sort query parameters alphabetically |
 | `-ignore-fragment` | `true` | Remove URL fragment (#...) |
 | `-fuzzy` | `false` | Replace numeric IDs in paths with {id} |
-| `-ignore-extensions` | `""` | Comma-separated extensions to skip |
+| `-ignore-extensions` | `""` | Comma-separated extensions to skip (blacklist) |
+| `-filter-extensions` | `""` | Comma-separated extensions to allow (whitelist) |
+
+**Note**: `--ignore-extensions` and `--filter-extensions` cannot be used together.
+
+**Extension Filtering Modes**:
+- **Blacklist** (`-ie`): Removes specified extensions → `dupdurl -ie jpg,png,css` excludes images/styles
+- **Whitelist** (`-fe`): Only keeps specified extensions → `dupdurl -fe js,json,php` keeps only code files
 
 ### Output Options
 | Flag | Default | Description |
