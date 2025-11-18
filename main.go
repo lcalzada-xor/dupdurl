@@ -191,7 +191,7 @@ func ParseFlags() *CLIConfig {
 
 // printUsage prints a professional, categorized help message
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `dupdurl v2.2.0 - URL Deduplication Tool
+	fmt.Fprintf(os.Stderr, `dupdurl v2.3.0 - URL Deduplication Tool
 
 USAGE:
   dupdurl [OPTIONS] < urls.txt

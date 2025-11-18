@@ -1,0 +1,16 @@
+?   	github.com/lcalzada-xor/dupdurl	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/cmd/dupdurl	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/config	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/deduplicator	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/diff	[no test files]
+ok  	github.com/lcalzada-xor/dupdurl/pkg/locale	0.004s
+?   	github.com/lcalzada-xor/dupdurl/pkg/normalizer	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/output	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/pool	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/processor	[no test files]
+ok  	github.com/lcalzada-xor/dupdurl/pkg/scope	0.001s
+?   	github.com/lcalzada-xor/dupdurl/pkg/stats	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/storage	[no test files]
+ok  	github.com/lcalzada-xor/dupdurl/tests/benchmark	0.002s [no tests to run]
+ok  	github.com/lcalzada-xor/dupdurl/tests/integration	0.004s
+ok  	github.com/lcalzada-xor/dupdurl/tests/unit	0.012s

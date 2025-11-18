@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"github.com/lcalzada-xor/dupdurl/pkg/locale"
 )
 
 // Config holds URL normalization configuration
@@ -23,20 +25,24 @@ type Config struct {
 	BlockDomains     map[string]struct{}
 	IgnoreExtensions map[string]struct{}
 	FilterExtensions map[string]struct{}
+	LocaleAware      bool     // Enable locale-aware deduplication
+	LocalePriority   []string // Priority order for locales (default: ["en"])
 }
 
 // NewConfig creates a default normalization configuration
 func NewConfig() *Config {
 	return &Config{
-		Mode:           "url",
-		IgnoreParams:   make(map[string]struct{}),
-		IgnoreFragment: true,
-		TrimSpaces:     true,
-		FuzzyPatterns:  GetDefaultPatterns(),
-		AllowDomains:   make(map[string]struct{}),
-		BlockDomains:   make(map[string]struct{}),
+		Mode:             "url",
+		IgnoreParams:     make(map[string]struct{}),
+		IgnoreFragment:   true,
+		TrimSpaces:       true,
+		FuzzyPatterns:    GetDefaultPatterns(),
+		AllowDomains:     make(map[string]struct{}),
+		BlockDomains:     make(map[string]struct{}),
 		IgnoreExtensions: make(map[string]struct{}),
 		FilterExtensions: make(map[string]struct{}),
+		LocaleAware:      true,          // Enabled by default
+		LocalePriority:   []string{"en"}, // English priority by default
 	}
 }
 
@@ -105,6 +111,16 @@ func (c *Config) NormalizeURL(raw string) (string, error) {
 func (c *Config) CreateDedupKey(raw string) (string, error) {
 	if c.TrimSpaces {
 		raw = strings.TrimSpace(raw)
+	}
+
+	// Apply locale-aware normalization if enabled
+	if c.LocaleAware {
+		detector := locale.NewDetector()
+		localized, err := detector.Detect(raw)
+		if err == nil && localized.LocaleType != locale.LocaleTypeNone {
+			// Use the base URL (without locale) as the starting point
+			raw = localized.BaseURL
+		}
 	}
 
 	u, err := url.Parse(raw)

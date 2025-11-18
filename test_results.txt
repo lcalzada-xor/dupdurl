@@ -1,0 +1,232 @@
+?   	github.com/lcalzada-xor/dupdurl	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/cmd/dupdurl	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/config	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/deduplicator	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/diff	[no test files]
+=== RUN   TestDetectPathPrefix
+=== RUN   TestDetectPathPrefix/English_path_prefix
+=== RUN   TestDetectPathPrefix/Spanish_path_prefix
+=== RUN   TestDetectPathPrefix/Italian_path_prefix
+=== RUN   TestDetectPathPrefix/No_locale
+=== RUN   TestDetectPathPrefix/False_positive_-_endpoint
+=== RUN   TestDetectPathPrefix/False_positive_-_id
+--- PASS: TestDetectPathPrefix (0.00s)
+    --- PASS: TestDetectPathPrefix/English_path_prefix (0.00s)
+    --- PASS: TestDetectPathPrefix/Spanish_path_prefix (0.00s)
+    --- PASS: TestDetectPathPrefix/Italian_path_prefix (0.00s)
+    --- PASS: TestDetectPathPrefix/No_locale (0.00s)
+    --- PASS: TestDetectPathPrefix/False_positive_-_endpoint (0.00s)
+    --- PASS: TestDetectPathPrefix/False_positive_-_id (0.00s)
+=== RUN   TestDetectSubdomain
+=== RUN   TestDetectSubdomain/English_subdomain
+=== RUN   TestDetectSubdomain/Spanish_subdomain
+=== RUN   TestDetectSubdomain/No_locale_subdomain
+--- PASS: TestDetectSubdomain (0.00s)
+    --- PASS: TestDetectSubdomain/English_subdomain (0.00s)
+    --- PASS: TestDetectSubdomain/Spanish_subdomain (0.00s)
+    --- PASS: TestDetectSubdomain/No_locale_subdomain (0.00s)
+=== RUN   TestDetectQueryParam
+=== RUN   TestDetectQueryParam/Lang_parameter
+=== RUN   TestDetectQueryParam/Locale_parameter
+=== RUN   TestDetectQueryParam/No_locale_parameter
+--- PASS: TestDetectQueryParam (0.00s)
+    --- PASS: TestDetectQueryParam/Lang_parameter (0.00s)
+    --- PASS: TestDetectQueryParam/Locale_parameter (0.00s)
+    --- PASS: TestDetectQueryParam/No_locale_parameter (0.00s)
+=== RUN   TestRemoveLocale
+=== RUN   TestRemoveLocale/Remove_path_locale
+=== RUN   TestRemoveLocale/Remove_subdomain_locale
+=== RUN   TestRemoveLocale/Remove_query_locale
+--- PASS: TestRemoveLocale (0.00s)
+    --- PASS: TestRemoveLocale/Remove_path_locale (0.00s)
+    --- PASS: TestRemoveLocale/Remove_subdomain_locale (0.00s)
+    --- PASS: TestRemoveLocale/Remove_query_locale (0.00s)
+=== RUN   TestGrouperBasic
+--- PASS: TestGrouperBasic (0.00s)
+=== RUN   TestGrouperMultiplePages
+--- PASS: TestGrouperMultiplePages (0.00s)
+=== RUN   TestGrouperDifferentPaths
+--- PASS: TestGrouperDifferentPaths (0.00s)
+=== RUN   TestShouldGroup
+=== RUN   TestShouldGroup/Same_page_different_locales
+=== RUN   TestShouldGroup/Different_pages
+=== RUN   TestShouldGroup/Same_page_no_locale_vs_locale
+--- PASS: TestShouldGroup (0.00s)
+    --- PASS: TestShouldGroup/Same_page_different_locales (0.00s)
+    --- PASS: TestShouldGroup/Different_pages (0.00s)
+    --- PASS: TestShouldGroup/Same_page_no_locale_vs_locale (0.00s)
+=== RUN   TestTranslationMatcher
+=== RUN   TestTranslationMatcher/English_and_Spanish_about
+=== RUN   TestTranslationMatcher/English_and_Italian_about
+=== RUN   TestTranslationMatcher/Products_in_English_and_Spanish
+=== RUN   TestTranslationMatcher/Different_words
+=== RUN   TestTranslationMatcher/Same_word
+=== RUN   TestTranslationMatcher/Contact_in_multiple_languages
+--- PASS: TestTranslationMatcher (0.00s)
+    --- PASS: TestTranslationMatcher/English_and_Spanish_about (0.00s)
+    --- PASS: TestTranslationMatcher/English_and_Italian_about (0.00s)
+    --- PASS: TestTranslationMatcher/Products_in_English_and_Spanish (0.00s)
+    --- PASS: TestTranslationMatcher/Different_words (0.00s)
+    --- PASS: TestTranslationMatcher/Same_word (0.00s)
+    --- PASS: TestTranslationMatcher/Contact_in_multiple_languages (0.00s)
+=== RUN   TestGetCanonical
+=== RUN   TestGetCanonical/Spanish_about
+=== RUN   TestGetCanonical/English_about
+=== RUN   TestGetCanonical/Spanish_products
+=== RUN   TestGetCanonical/Unknown_word
+--- PASS: TestGetCanonical (0.00s)
+    --- PASS: TestGetCanonical/Spanish_about (0.00s)
+    --- PASS: TestGetCanonical/English_about (0.00s)
+    --- PASS: TestGetCanonical/Spanish_products (0.00s)
+    --- PASS: TestGetCanonical/Unknown_word (0.00s)
+PASS
+ok  	github.com/lcalzada-xor/dupdurl/pkg/locale	(cached)
+?   	github.com/lcalzada-xor/dupdurl/pkg/normalizer	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/output	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/pool	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/processor	[no test files]
+=== RUN   TestScopeChecker_IsInScope
+=== RUN   TestScopeChecker_IsInScope/exact_match
+=== RUN   TestScopeChecker_IsInScope/wildcard_subdomain_match
+=== RUN   TestScopeChecker_IsInScope/wildcard_with_base_domain
+=== RUN   TestScopeChecker_IsInScope/excluded_subdomain
+=== RUN   TestScopeChecker_IsInScope/out_of_scope
+=== RUN   TestScopeChecker_IsInScope/www_removal
+--- PASS: TestScopeChecker_IsInScope (0.00s)
+    --- PASS: TestScopeChecker_IsInScope/exact_match (0.00s)
+    --- PASS: TestScopeChecker_IsInScope/wildcard_subdomain_match (0.00s)
+    --- PASS: TestScopeChecker_IsInScope/wildcard_with_base_domain (0.00s)
+    --- PASS: TestScopeChecker_IsInScope/excluded_subdomain (0.00s)
+    --- PASS: TestScopeChecker_IsInScope/out_of_scope (0.00s)
+    --- PASS: TestScopeChecker_IsInScope/www_removal (0.00s)
+PASS
+ok  	github.com/lcalzada-xor/dupdurl/pkg/scope	(cached)
+?   	github.com/lcalzada-xor/dupdurl/pkg/stats	[no test files]
+?   	github.com/lcalzada-xor/dupdurl/pkg/storage	[no test files]
+testing: warning: no tests to run
+PASS
+ok  	github.com/lcalzada-xor/dupdurl/tests/benchmark	(cached) [no tests to run]
+=== RUN   TestEndToEndBasic
+--- PASS: TestEndToEndBasic (0.00s)
+=== RUN   TestEndToEndFuzzyMode
+--- PASS: TestEndToEndFuzzyMode (0.00s)
+=== RUN   TestEndToEndParallelProcessing
+--- PASS: TestEndToEndParallelProcessing (0.00s)
+=== RUN   TestEndToEndIgnoreParams
+--- PASS: TestEndToEndIgnoreParams (0.00s)
+=== RUN   TestOutputFormatters
+=== RUN   TestOutputFormatters/text_format
+=== RUN   TestOutputFormatters/json_format
+=== RUN   TestOutputFormatters/csv_format
+--- PASS: TestOutputFormatters (0.00s)
+    --- PASS: TestOutputFormatters/text_format (0.00s)
+    --- PASS: TestOutputFormatters/json_format (0.00s)
+    --- PASS: TestOutputFormatters/csv_format (0.00s)
+=== RUN   TestEndToEndExtensionFilter
+--- PASS: TestEndToEndExtensionFilter (0.00s)
+=== RUN   TestEndToEndDomainFilter
+--- PASS: TestEndToEndDomainFilter (0.00s)
+=== RUN   TestLocaleAwareDeduplication
+--- PASS: TestLocaleAwareDeduplication (0.00s)
+=== RUN   TestLocaleAwareWithSubdomains
+--- PASS: TestLocaleAwareWithSubdomains (0.00s)
+=== RUN   TestLocaleAwareWithQueryParams
+--- PASS: TestLocaleAwareWithQueryParams (0.00s)
+=== RUN   TestNoFalsePositives
+--- PASS: TestNoFalsePositives (0.00s)
+=== RUN   TestMixedScenario
+--- PASS: TestMixedScenario (0.00s)
+PASS
+ok  	github.com/lcalzada-xor/dupdurl/tests/integration	(cached)
+=== RUN   TestDeduplicatorBasic
+--- PASS: TestDeduplicatorBasic (0.00s)
+=== RUN   TestDeduplicatorOrder
+--- PASS: TestDeduplicatorOrder (0.00s)
+=== RUN   TestDeduplicatorStatistics
+--- PASS: TestDeduplicatorStatistics (0.00s)
+=== RUN   TestDeduplicatorClear
+--- PASS: TestDeduplicatorClear (0.00s)
+=== RUN   TestNormalizePath
+=== RUN   TestNormalizePath/empty_path
+=== RUN   TestNormalizePath/root_path
+=== RUN   TestNormalizePath/simple_path
+=== RUN   TestNormalizePath/trailing_slash
+=== RUN   TestNormalizePath/multiple_slashes
+=== RUN   TestNormalizePath/no_leading_slash
+--- PASS: TestNormalizePath (0.00s)
+    --- PASS: TestNormalizePath/empty_path (0.00s)
+    --- PASS: TestNormalizePath/root_path (0.00s)
+    --- PASS: TestNormalizePath/simple_path (0.00s)
+    --- PASS: TestNormalizePath/trailing_slash (0.00s)
+    --- PASS: TestNormalizePath/multiple_slashes (0.00s)
+    --- PASS: TestNormalizePath/no_leading_slash (0.00s)
+=== RUN   TestFuzzyPath
+=== RUN   TestFuzzyPath/numeric_ID
+=== RUN   TestFuzzyPath/multiple_IDs
+=== RUN   TestFuzzyPath/no_ID
+=== RUN   TestFuzzyPath/trailing_ID
+--- PASS: TestFuzzyPath (0.00s)
+    --- PASS: TestFuzzyPath/numeric_ID (0.00s)
+    --- PASS: TestFuzzyPath/multiple_IDs (0.00s)
+    --- PASS: TestFuzzyPath/no_ID (0.00s)
+    --- PASS: TestFuzzyPath/trailing_ID (0.00s)
+=== RUN   TestNormalizeURL
+=== RUN   TestNormalizeURL/basic_normalization
+=== RUN   TestNormalizeURL/remove_fragment
+=== RUN   TestNormalizeURL/keep_www
+--- PASS: TestNormalizeURL (0.00s)
+    --- PASS: TestNormalizeURL/basic_normalization (0.00s)
+    --- PASS: TestNormalizeURL/remove_fragment (0.00s)
+    --- PASS: TestNormalizeURL/keep_www (0.00s)
+=== RUN   TestBuildSortedQuery
+=== RUN   TestBuildSortedQuery/empty_query
+=== RUN   TestBuildSortedQuery/single_param
+=== RUN   TestBuildSortedQuery/sorted_params
+=== RUN   TestBuildSortedQuery/multiple_values_sorted
+--- PASS: TestBuildSortedQuery (0.00s)
+    --- PASS: TestBuildSortedQuery/empty_query (0.00s)
+    --- PASS: TestBuildSortedQuery/single_param (0.00s)
+    --- PASS: TestBuildSortedQuery/sorted_params (0.00s)
+    --- PASS: TestBuildSortedQuery/multiple_values_sorted (0.00s)
+=== RUN   TestParseSet
+=== RUN   TestParseSet/empty_string
+=== RUN   TestParseSet/single_item
+=== RUN   TestParseSet/multiple_items
+=== RUN   TestParseSet/with_spaces
+=== RUN   TestParseSet/case_insensitive
+--- PASS: TestParseSet (0.00s)
+    --- PASS: TestParseSet/empty_string (0.00s)
+    --- PASS: TestParseSet/single_item (0.00s)
+    --- PASS: TestParseSet/multiple_items (0.00s)
+    --- PASS: TestParseSet/with_spaces (0.00s)
+    --- PASS: TestParseSet/case_insensitive (0.00s)
+=== RUN   TestExtensionFilter
+=== RUN   TestExtensionFilter/image_jpg
+=== RUN   TestExtensionFilter/image_png
+=== RUN   TestExtensionFilter/css_file
+=== RUN   TestExtensionFilter/html_file
+=== RUN   TestExtensionFilter/no_extension
+=== RUN   TestExtensionFilter/extension_in_path
+--- PASS: TestExtensionFilter (0.00s)
+    --- PASS: TestExtensionFilter/image_jpg (0.00s)
+    --- PASS: TestExtensionFilter/image_png (0.00s)
+    --- PASS: TestExtensionFilter/css_file (0.00s)
+    --- PASS: TestExtensionFilter/html_file (0.00s)
+    --- PASS: TestExtensionFilter/no_extension (0.00s)
+    --- PASS: TestExtensionFilter/extension_in_path (0.00s)
+=== RUN   TestStatisticsBasic
+--- PASS: TestStatisticsBasic (0.00s)
+=== RUN   TestProcessingTime
+--- PASS: TestProcessingTime (0.01s)
+=== RUN   TestPrintStatistics
+--- PASS: TestPrintStatistics (0.00s)
+=== RUN   TestRecordDomain
+--- PASS: TestRecordDomain (0.00s)
+=== RUN   TestRecordParam
+--- PASS: TestRecordParam (0.00s)
+=== RUN   TestAvgQueryParams
+--- PASS: TestAvgQueryParams (0.00s)
+=== RUN   TestToJSON
+--- PASS: TestToJSON (0.00s)
+PASS
+ok  	github.com/lcalzada-xor/dupdurl/tests/unit	(cached)
